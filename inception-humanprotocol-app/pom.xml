@@ -1,0 +1,167 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.github.reckart</groupId>
+    <artifactId>inception-humanprotocol</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>inception-humanprotocol-app</artifactId>
+  <packaging>war</packaging>
+
+  <dependencies>
+    <dependency>
+      <groupId>de.tudarmstadt.ukp.inception.app</groupId>
+      <artifactId>inception-app-webapp</artifactId>
+      <version>0.19.0-SNAPSHOT</version>
+      <type>war</type>
+    </dependency>
+
+    <dependency>
+      <groupId>io.github.reckart</groupId>
+      <artifactId>inception-humanprotocol-adapter</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <artifactId>maven-war-plugin</artifactId>
+          <configuration>
+            <failOnMissingWebXml>false</failOnMissingWebXml>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+
+  <profiles>
+    <profile>
+      <id>m2e</id>
+      <activation>
+        <property>
+          <name>m2e.version</name>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>de.tudarmstadt.ukp.inception.app</groupId>
+          <artifactId>inception-app-webapp</artifactId>
+          <version>0.19.0-SNAPSHOT</version>
+          <type>jar</type>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>non-m2e</id>
+      <activation>
+        <property>
+          <name>!m2e.version</name>
+        </property>
+      </activation>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-compiler-plugin</artifactId>
+              <configuration>
+                <excludes>
+                  <exclude>**/io/github/reckart/inception/humanprotocol/app/Starter.java</exclude>
+                </excludes>
+              </configuration>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+        <plugins>
+          <plugin>
+              <!--
+                This plugin must be declared before the ant-run plugin because during the package
+                phase, it creates a the files which the "copy-war-to-jar" execution of the ant-run
+                plugin running also in the package phase requires.
+              -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-maven-plugin</artifactId>
+            <version>${spring.boot.version}</version>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>repackage</goal>
+                </goals>
+                <configuration>
+                  <executable>true</executable>
+                  <layoutFactory
+                    implementation="de.tudarmstadt.ukp.inception.bootloader.ExtensibleClasspathEnabledWarLayoutFactory" />
+                    <!--
+                      We want the original file to be the WAR and the repackaged all-inclusive runnable
+                      thing with the embedded Tomcat to be the JAR.
+                    -->
+                  <attach>false</attach>
+                  <classifier>standalone</classifier>
+                  <excludes>
+                    <exclude>
+                      <groupId>de.tudarmstadt.ukp.inception.app</groupId>
+                      <artifactId>inception-app-webapp</artifactId>
+                    </exclude>
+                  </excludes>
+                </configuration>
+              </execution>
+            </executions>
+            <dependencies>
+              <dependency>
+                <groupId>de.tudarmstadt.ukp.inception.app</groupId>
+                <artifactId>inception-boot-loader</artifactId>
+                <version>${inception.version}</version>
+              </dependency>
+            </dependencies>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>copy-war-to-jar</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <configuration>
+                  <target>
+                    <move file="target/${project.artifactId}-${project.version}-standalone.war"
+                      tofile="target/${project.artifactId}-${project.version}-standalone.jar" />
+                  </target>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>attach-artifacts</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>attach-artifact</goal>
+                </goals>
+                <configuration>
+                  <artifacts>
+                    <artifact>
+                      <file>target/${project.artifactId}-${project.version}-standalone.jar</file>
+                      <type>jar</type>
+                      <classifier>standalone</classifier>
+                    </artifact>
+                  </artifacts>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>
