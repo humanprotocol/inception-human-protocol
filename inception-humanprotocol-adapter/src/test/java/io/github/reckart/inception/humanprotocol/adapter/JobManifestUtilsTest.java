@@ -24,19 +24,30 @@ import java.nio.file.Path;
 
 import org.junit.Test;
 
-import io.github.reckart.inception.humanprotocol.HumanManifestUtils;
-import io.github.reckart.inception.humanprotocol.model.HumanManifest;
+import io.github.reckart.inception.humanprotocol.JobManifestUtils;
+import io.github.reckart.inception.humanprotocol.model.JobManifest;
+import io.github.reckart.inception.humanprotocol.model.TaskData;
 
-public class ManifestUtilsTest
+public class JobManifestUtilsTest
 {
     @Test
     public void thatManifestCanBeLoaded() throws Exception {
-        HumanManifest sut;
+        JobManifest sut;
         try (InputStream is = Files.newInputStream(Path.of("src/test/resources/manifest/example.json"))) {
-            sut = HumanManifestUtils.loadManifest(is);
+            sut = JobManifestUtils.loadManifest(is);
         }
         
         assertThat(sut.getRequesterQuestion().get("en")).contains("box around all");
         assertThat(sut.getRequesterRestrictedAnswerSet().get("human").get("en")).isEqualTo("human");
+    }
+
+    @Test
+    public void thatTaskDataCanBeLoaded() throws Exception {
+        TaskData sut;
+        try (InputStream is = Files.newInputStream(Path.of("src/test/resources/manifest/dataset.json"))) {
+            sut = JobManifestUtils.loadTaskData(is);
+        }
+        
+        assertThat(sut).hasSize(2);
     }
 }

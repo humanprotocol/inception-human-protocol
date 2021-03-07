@@ -25,6 +25,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 
 import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
+import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import io.github.reckart.inception.humanprotocol.HumanProtocolController;
 import io.github.reckart.inception.humanprotocol.HumanProtocolControllerImpl;
@@ -39,9 +40,10 @@ public class HumanProtocolAutoConfiguration
     @ConditionalOnMissingBean
     @Bean
     public HumanProtocolController humanProtocolController(ProjectService aProjectService,
+            DocumentService aDocumentService,
             AnnotationSchemaService aSchemaService)
     {
-        return new HumanProtocolControllerImpl(aProjectService, aSchemaService);
+        return new HumanProtocolControllerImpl(aProjectService, aDocumentService, aSchemaService);
     }
 
     @Bean

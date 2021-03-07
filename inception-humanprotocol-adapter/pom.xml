@@ -20,6 +20,10 @@
       <groupId>de.tudarmstadt.ukp.inception.app</groupId>
       <artifactId>inception-project</artifactId>
     </dependency>
+    <dependency>
+      <groupId>de.tudarmstadt.ukp.inception.app</groupId>
+      <artifactId>inception-io-text</artifactId>
+    </dependency>
     
     <dependency>
       <groupId>org.springframework</groupId>
@@ -30,7 +34,6 @@
     <dependency>
       <groupId>org.springdoc</groupId>
       <artifactId>springdoc-openapi-ui</artifactId>
-      <version>1.5.5</version>
     </dependency>
     
     <!-- Test -->
@@ -98,11 +101,6 @@
     <dependency>
       <groupId>com.h2database</groupId>
       <artifactId>h2</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>de.tudarmstadt.ukp.inception.app</groupId>
-      <artifactId>inception-io-text</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

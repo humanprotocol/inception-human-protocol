@@ -14,16 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
-package io.github.reckart.inception.humanprotocol;
+package io.github.reckart.inception.humanprotocol.model;
 
-import org.springframework.http.ResponseEntity;
+import java.util.ArrayList;
 
-import io.github.reckart.inception.humanprotocol.model.JobManifest;
-
-public interface HumanProtocolController
+public class TaskData extends ArrayList<TaskDataItem>
 {
-    static final String API_BASE = "/api/human-protocol/v1";
-    static final String SUBMIT_JOB = "submitJob";
-    
-    ResponseEntity<Void> submitJob(JobManifest aManifest) throws Exception;
+    private static final long serialVersionUID = -6574324333896814846L;
+
 }

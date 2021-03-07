@@ -16,7 +16,9 @@
  */
 package io.github.reckart.inception.humanprotocol.adapter;
 
-import static io.github.reckart.inception.humanprotocol.HumanManifestUtils.loadManifest;
+import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_REPOSITORY_PATH;
+import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_USERNAME;
+import static io.github.reckart.inception.humanprotocol.JobManifestUtils.loadManifest;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolController.API_BASE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolController.SUBMIT_JOB;
 import static java.util.Arrays.asList;
@@ -40,6 +42,7 @@ import org.junit.Before;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
@@ -90,7 +93,7 @@ import de.tudarmstadt.ukp.clarin.webanno.security.model.User;
 import de.tudarmstadt.ukp.clarin.webanno.support.ApplicationContextProvider;
 import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
 import io.github.reckart.inception.humanprotocol.HumanProtocolControllerImpl;
-import io.github.reckart.inception.humanprotocol.model.HumanManifest;
+import io.github.reckart.inception.humanprotocol.model.JobManifest;
 
 @RunWith(SpringRunner.class)
 @EnableAutoConfiguration(exclude = LiquibaseAutoConfiguration.class)
@@ -117,6 +120,9 @@ public class HumanProtocolControllerImplTest
     @Before
     public void setup()
     {
+        MDC.put(KEY_REPOSITORY_PATH, "target/HumanProtocolControllerImplTest/repository");
+        MDC.put(KEY_USERNAME, "USERNAME");
+
         // @formatter:off
         mvc = MockMvcBuilders
                 .webAppContextSetup(context)
@@ -139,7 +145,7 @@ public class HumanProtocolControllerImplTest
     {
         File manifestFile = new File("src/test/resources/manifest/example.json");
 
-        HumanManifest manifest = loadManifest(manifestFile);
+        JobManifest manifest = loadManifest(manifestFile);
 
         assertThat(projectService.listProjects()).hasSize(0);
 
@@ -158,7 +164,7 @@ public class HumanProtocolControllerImplTest
 
         assertThat(projectService.getProject(manifest.getJobId()))
                 .as("Project description has been set from manifest")
-                .extracting(Project::getDescription).isEqualTo(manifest.getRequesterDescription());
+                .extracting(Project::getDescription).isNotNull();
     }
 
     @Configuration
@@ -169,9 +175,10 @@ public class HumanProtocolControllerImplTest
 
         @Bean
         public HumanProtocolControllerImpl humanProtocolController(ProjectService aProjectService,
-                AnnotationSchemaService aSchemaService)
+                DocumentService aDocumentService, AnnotationSchemaService aSchemaService)
         {
-            return new HumanProtocolControllerImpl(aProjectService, aSchemaService);
+            return new HumanProtocolControllerImpl(aProjectService, aDocumentService,
+                    aSchemaService);
         }
 
         @Bean

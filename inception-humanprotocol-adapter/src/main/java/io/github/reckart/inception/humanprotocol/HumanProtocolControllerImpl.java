@@ -26,10 +26,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
+
 import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
+import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
-import io.github.reckart.inception.humanprotocol.model.HumanManifest;
+import io.github.reckart.inception.humanprotocol.model.JobManifest;
 import io.swagger.v3.oas.annotations.Operation;
 
 @ResponseBody
@@ -38,27 +40,29 @@ public class HumanProtocolControllerImpl
     implements HumanProtocolController
 {
     private final ProjectService projectService;
+    private final DocumentService documentService;
     private final AnnotationSchemaService schemaService;
 
     public HumanProtocolControllerImpl(ProjectService aProjectService,
-            AnnotationSchemaService aSchemaService)
+            DocumentService aDocumentService, AnnotationSchemaService aSchemaService)
     {
         projectService = aProjectService;
+        documentService = aDocumentService;
         schemaService = aSchemaService;
     }
 
     @Override
     @Operation(summary = "Submit new job")
     @PostMapping(path = "/" + SUBMIT_JOB, //
-    consumes = APPLICATION_JSON_VALUE, //
+            consumes = APPLICATION_JSON_VALUE, //
             produces = ALL_VALUE)
-    public ResponseEntity<Void> submitJob(@RequestBody HumanManifest aManifest) throws Exception
+    public ResponseEntity<Void> submitJob(@RequestBody JobManifest aManifest) throws Exception
     {
         Project project = new Project(aManifest.getJobId());
         project.setDescription(aManifest.getRequesterQuestion().get("en"));
         projectService.createProject(project);
-        projectService.initializeProject(project,
-                asList(new HumanManifestProjectInitializer(aManifest, schemaService)));
+        projectService.initializeProject(project, asList(
+                new HumanProtocolProjectInitializer(aManifest, documentService, schemaService)));
         return new ResponseEntity<>(CREATED);
     }
 }

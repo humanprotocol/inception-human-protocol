@@ -24,19 +24,23 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-public class HumanManifest
+public class JobManifest
 {
     private String jobId;
-    private HumanInternationalizedStrings requesterQuestion;
+    
+    private InternationalizedStrings requesterQuestion;
     private String requesterDescription;    
     private int requesterMinRepeats;
     private int requesterMaxRepeats;
     private double requesterAccuracyTarget;
-    private Map<String, HumanInternationalizedStrings> requesterRestrictedAnswerSet;
+    private Map<String, InternationalizedStrings> requesterRestrictedAnswerSet;
      
     private long expirationDate;
     
     private String taskBidPrice;
+    
+    private String requestType;
+    private Map<String, Object> requestConfig;
     
     private String taskdataUri;
 
@@ -50,12 +54,12 @@ public class HumanManifest
         return jobId;
     }
     
-    public HumanInternationalizedStrings getRequesterQuestion()
+    public InternationalizedStrings getRequesterQuestion()
     {
         return requesterQuestion;
     }
 
-    public void setRequesterQuestion(HumanInternationalizedStrings aRequesterQuestion)
+    public void setRequesterQuestion(InternationalizedStrings aRequesterQuestion)
     {
         requesterQuestion = aRequesterQuestion;
     }
@@ -100,13 +104,13 @@ public class HumanManifest
         requesterAccuracyTarget = aRequesterAccuracyTarget;
     }
 
-    public Map<String, HumanInternationalizedStrings> getRequesterRestrictedAnswerSet()
+    public Map<String, InternationalizedStrings> getRequesterRestrictedAnswerSet()
     {
         return requesterRestrictedAnswerSet;
     }
 
     public void setRequesterRestrictedAnswerSet(
-            Map<String, HumanInternationalizedStrings> aRequesterRestrictedAnswerSet)
+            Map<String, InternationalizedStrings> aRequesterRestrictedAnswerSet)
     {
         requesterRestrictedAnswerSet = aRequesterRestrictedAnswerSet;
     }
@@ -139,5 +143,25 @@ public class HumanManifest
     public void setTaskdataUri(String aTaskdataUri)
     {
         taskdataUri = aTaskdataUri;
+    }
+
+    public String getRequestType()
+    {
+        return requestType;
+    }
+
+    public void setRequestType(String aRequestType)
+    {
+        requestType = aRequestType;
+    }
+
+    public Map<String, Object> getRequestConfig()
+    {
+        return requestConfig;
+    }
+
+    public void setRequestConfig(Map<String, Object> aRequestConfig)
+    {
+        requestConfig = aRequestConfig;
     }
 }
