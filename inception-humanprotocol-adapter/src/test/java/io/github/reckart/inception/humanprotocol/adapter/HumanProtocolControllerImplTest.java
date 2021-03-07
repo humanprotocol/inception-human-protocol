@@ -143,7 +143,7 @@ public class HumanProtocolControllerImplTest
     @Test
     public void t001_thatManifestCanCreateProject() throws Exception
     {
-        File manifestFile = new File("src/test/resources/manifest/example.json");
+        File manifestFile = new File("src/test/resources/manifest/example-remote-data.json");
 
         JobManifest manifest = loadManifest(manifestFile);
 

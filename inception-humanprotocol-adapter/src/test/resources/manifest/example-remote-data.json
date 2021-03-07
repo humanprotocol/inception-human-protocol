@@ -1,0 +1,61 @@
+{
+    "job_mode": "batch",
+    "job_api_key": "0334542b-322d-4140-9be9-747186d3df10",
+    "job_id": "e376b295-637a-4f6f-ba5c-3662a5d57f07",
+    "job_total_tasks": 5,
+    "requester_restricted_answer_set": {
+        "airplane": {
+            "en": "airplane"
+        },
+        "bus": {
+            "en": "bus"
+        },
+        "car": {
+            "en": "car"
+        },
+        "human": {
+            "en": "human"
+        }
+    },
+    "requester_description": null,
+    "requester_max_repeats": 100,
+    "requester_min_repeats": 1,
+    "requester_question": {
+        "en": "Draw a box around all of the Car, Airplanes, Humans & Bus"
+    },
+    "requester_question_example": "https://some-example",
+    "unsafe_content": false,
+    "task_bid_price": "1.0",
+    "oracle_stake": "0.05",
+    "expiration_date": 0,
+    "requester_accuracy_target": 0.1,
+    "manifest_smart_bounty_addr": null,
+    "hmtoken_addr": null,
+    "minimum_trust_server": 0.1,
+    "minimum_trust_client": 0.1,
+    "recording_oracle_addr": "0x1A55C4CB37087B3802f7C9B3eceCB9Ba67253837",
+    "reputation_oracle_addr": "0x1A55C4CB37087B3802f7C9B3eceCB9Ba67253837",
+    "reputation_agent_addr": "0x1A55C4CB37087B3802f7C9B3eceCB9Ba67253837",
+    "requester_pgp_public_key": null,
+    "ro_uri": null,
+    "repo_uri": null,
+    "batch_result_delivery_webhook": null,
+    "online_result_delivery_webhook": null,
+    "instant_result_delivery_webhook": "http://google.com/webback",
+    "multi_challenge_manifests": null,
+    "request_type": "span_select",
+    "request_config": {
+        "version": 0,
+        "anchoring": "tokens",
+        "overlap": "none",
+        "crossSenence": false
+    },
+    "taskdata": null,
+    "taskdata_uri": "https://gist.githubusercontent.com/reckart/a5fa52790f7e6a4e3ea71e102d9d019a/raw/d74ef011127b8ca5bea90dc0384486102dbd97e9/dataset.json",
+    "groundtruth_uri": null,
+    "groundtruth": null,
+    "internal_config": null,
+    "confcalc_configuration_id": null,
+    "restricted_audience": null,
+    "webhook": null
+}

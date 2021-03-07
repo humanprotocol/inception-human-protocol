@@ -132,7 +132,7 @@ public class HumanProtocolProjectInitializer
                         .getName(datapointUri.getPath()), aProject, TextFormatSupport.ID);
                 documentService.createSourceDocument(sourceDocument);
                 try (InputStream is = new FileInputStream(tmpFile)) {
-                    documentService.uploadSourceDocument(is, null);
+                    documentService.uploadSourceDocument(is, sourceDocument);
                 }
             }
             catch (IOException e) {

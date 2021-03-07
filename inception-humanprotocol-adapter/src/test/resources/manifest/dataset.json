@@ -1,12 +1,12 @@
 [
   {
-    "datapoint_hash": "ce01a49f34274730ab8d7fa960998baa",
-    "datapoint_uri": "datapoint1.txt",
+    "datapoint_hash": "ab68b8451e850b1cfe15a2ac2e2ed1fc",
+    "datapoint_uri": "https://gist.github.com/reckart/ab68b8451e850b1cfe15a2ac2e2ed1fc",
     "task_key": "53fdad02-b6d1-4f94-a617-bc204b6e8d27"
   },
   {
-    "datapoint_hash": "50059ad8690344b88f2f52ef8fc360a0",
-    "datapoint_uri": "datapoint2.txt",
+    "datapoint_hash": "b04c0d9938643099fbc1b02a7dea66ec",
+    "datapoint_uri": "https://gist.github.com/reckart/b04c0d9938643099fbc1b02a7dea66ec",
     "task_key": "22bf88a2-1caa-4b92-b304-cf947380455d"
   }
 ]
