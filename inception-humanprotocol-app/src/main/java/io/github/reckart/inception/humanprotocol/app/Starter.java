@@ -16,12 +16,29 @@
  */
 package io.github.reckart.inception.humanprotocol.app;
 
+import org.springframework.boot.autoconfigure.AutoConfigurationExcludeFilter;
+import org.springframework.boot.autoconfigure.AutoConfigurationPackage;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.boot.context.TypeExcludeFilter;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.ComponentScan.Filter;
+import org.springframework.context.annotation.FilterType;
+
 import de.tudarmstadt.ukp.inception.INCEpTION;
 
+@SpringBootApplication
+@AutoConfigurationPackage(basePackages = { "io.github.reckart.inception.humanprotocol" })
+@EntityScan(basePackages = { "io.github.reckart.inception.humanprotocol" })
+@ComponentScan(basePackages = { "io.github.reckart.inception.humanprotocol" },
+    excludeFilters = {
+        @Filter(type = FilterType.REGEX, pattern = ".*AutoConfiguration"),
+        @Filter(type = FilterType.CUSTOM, classes = TypeExcludeFilter.class),
+        @Filter(type = FilterType.CUSTOM, classes = AutoConfigurationExcludeFilter.class) })
 public class Starter extends INCEpTION
 {
     public static void main(String[] args) throws Exception
     {
-        INCEpTION.main(args);
+        run(args, Starter.class);
     }
 }

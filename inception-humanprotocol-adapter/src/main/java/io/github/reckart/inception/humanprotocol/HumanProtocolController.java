@@ -22,7 +22,7 @@ import io.github.reckart.inception.humanprotocol.model.HumanManifest;
 
 public interface HumanProtocolController
 {
-    static final String API_BASE = "/api/human-protocol/";
+    static final String API_BASE = "/api/human-protocol/v1";
     static final String SUBMIT_JOB = "submitJob";
     
     ResponseEntity<Void> submitJob(HumanManifest aManifest) throws Exception;

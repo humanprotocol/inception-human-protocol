@@ -26,6 +26,14 @@
       <artifactId>spring-web</artifactId>
     </dependency>
     
+    <!-- Swagger / Springdoc -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-ui</artifactId>
+      <version>1.5.5</version>
+    </dependency>
+    
+    <!-- Test -->
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>

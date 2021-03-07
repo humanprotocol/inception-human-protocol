@@ -18,19 +18,21 @@ package io.github.reckart.inception.humanprotocol;
 
 import static java.util.Arrays.asList;
 import static org.springframework.http.HttpStatus.CREATED;
+import static org.springframework.http.MediaType.ALL_VALUE;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.web.bind.annotation.ResponseBody;
 import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
 import io.github.reckart.inception.humanprotocol.model.HumanManifest;
+import io.swagger.v3.oas.annotations.Operation;
 
-@RestController
+@ResponseBody
 @RequestMapping(HumanProtocolController.API_BASE)
 public class HumanProtocolControllerImpl
     implements HumanProtocolController
@@ -38,14 +40,18 @@ public class HumanProtocolControllerImpl
     private final ProjectService projectService;
     private final AnnotationSchemaService schemaService;
 
-    public HumanProtocolControllerImpl(ProjectService aProjectService, AnnotationSchemaService aSchemaService)
+    public HumanProtocolControllerImpl(ProjectService aProjectService,
+            AnnotationSchemaService aSchemaService)
     {
         projectService = aProjectService;
         schemaService = aSchemaService;
     }
 
     @Override
-    @PostMapping(SUBMIT_JOB)
+    @Operation(summary = "Submit new job")
+    @PostMapping(path = "/" + SUBMIT_JOB, //
+    consumes = APPLICATION_JSON_VALUE, //
+            produces = ALL_VALUE)
     public ResponseEntity<Void> submitJob(@RequestBody HumanManifest aManifest) throws Exception
     {
         Project project = new Project(aManifest.getJobId());

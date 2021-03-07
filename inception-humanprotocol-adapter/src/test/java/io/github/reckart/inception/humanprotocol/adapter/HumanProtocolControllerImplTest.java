@@ -22,6 +22,8 @@ import static io.github.reckart.inception.humanprotocol.HumanProtocolController.
 import static java.util.Arrays.asList;
 import static org.apache.commons.io.FileUtils.readFileToByteArray;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.runners.MethodSorters.NAME_ASCENDING;
+import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.MOCK;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -38,13 +40,11 @@ import org.junit.Before;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.MethodSorters;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -94,12 +94,12 @@ import io.github.reckart.inception.humanprotocol.model.HumanManifest;
 
 @RunWith(SpringRunner.class)
 @EnableAutoConfiguration(exclude = LiquibaseAutoConfiguration.class)
-@SpringBootTest(webEnvironment = WebEnvironment.MOCK, properties = {
+@SpringBootTest(webEnvironment = MOCK, properties = {
         "repository.path=target/HumanProtocolControllerImplTest/repository" })
 @EnableWebSecurity
 @EntityScan({ "de.tudarmstadt.ukp.clarin.webanno.model",
         "de.tudarmstadt.ukp.clarin.webanno.security.model" })
-@FixMethodOrder(MethodSorters.NAME_ASCENDING)
+@FixMethodOrder(NAME_ASCENDING)
 public class HumanProtocolControllerImplTest
 {
     private @Autowired WebApplicationContext context;
@@ -144,7 +144,7 @@ public class HumanProtocolControllerImplTest
         assertThat(projectService.listProjects()).hasSize(0);
 
         // @formatter:off
-        mvc.perform(post(API_BASE + SUBMIT_JOB)
+        mvc.perform(post(API_BASE + "/" + SUBMIT_JOB)
                 .with(csrf().asHeader())
                 .with(user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON)
