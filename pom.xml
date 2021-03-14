@@ -24,6 +24,7 @@
 
   <modules>
     <module>inception-humanprotocol-adapter</module>    <module>inception-humanprotocol-app</module>
+    <module>inception-humanprotocol-docker</module>
   </modules>
 
   <dependencyManagement>
