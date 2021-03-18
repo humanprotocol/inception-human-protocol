@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
-
 package io.github.reckart.inception.humanprotocol;
 
 import java.io.File;
@@ -26,7 +25,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.file.Files;
-
 import de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
 import io.github.reckart.inception.humanprotocol.model.TaskData;
@@ -45,6 +43,11 @@ public class JobManifestUtils
         }
     }
 
+    public static JobManifest loadManifest(URI aUri) throws IOException
+    {
+        return fetch(aUri, JobManifest.class);
+    }
+
     public static TaskData loadTaskData(InputStream aInputStream) throws IOException
     {
         return JSONUtil.fromJsonStream(TaskData.class, aInputStream);
@@ -59,12 +62,16 @@ public class JobManifestUtils
 
     public static TaskData loadTaskData(URI aUri) throws IOException
     {
+        return fetch(aUri, TaskData.class);
+    }
+
+    public static <R> R fetch(URI aUri, Class<R> aClass)  throws IOException {
         try {
             HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder().uri(aUri).build();
             HttpResponse<InputStream> response = client.send(request, BodyHandlers.ofInputStream());
             try (InputStream is = response.body()) {
-                return loadTaskData(is);
+                return JSONUtil.fromJsonStream(aClass, is);
             }
         }
         catch (IOException e) {

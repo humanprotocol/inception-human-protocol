@@ -16,14 +16,17 @@
  */
 package io.github.reckart.inception.humanprotocol.adapter;
 
+import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.toJsonString;
 import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_REPOSITORY_PATH;
 import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_USERNAME;
-import static io.github.reckart.inception.humanprotocol.JobManifestUtils.loadManifest;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_HUMAN_SIGNATURE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolController.API_BASE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolController.SUBMIT_JOB;
+import static io.github.reckart.inception.humanprotocol.JobManifestUtils.loadManifest;
+import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateBase64Signature;
 import static java.util.Arrays.asList;
-import static org.apache.commons.io.FileUtils.readFileToByteArray;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.contentOf;
 import static org.junit.runners.MethodSorters.NAME_ASCENDING;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.MOCK;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -38,6 +41,7 @@ import java.util.List;
 
 import javax.persistence.EntityManager;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
@@ -93,7 +97,11 @@ import de.tudarmstadt.ukp.clarin.webanno.security.model.User;
 import de.tudarmstadt.ukp.clarin.webanno.support.ApplicationContextProvider;
 import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
 import io.github.reckart.inception.humanprotocol.HumanProtocolControllerImpl;
+import io.github.reckart.inception.humanprotocol.messages.JobRequest;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
+import io.github.reckart.inception.humanprotocol.security.HumanSignatureValidationFilter;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
 
 @RunWith(SpringRunner.class)
 @EnableAutoConfiguration(exclude = LiquibaseAutoConfiguration.class)
@@ -105,11 +113,14 @@ import io.github.reckart.inception.humanprotocol.model.JobManifest;
 @FixMethodOrder(NAME_ASCENDING)
 public class HumanProtocolControllerImplTest
 {
+    private static final String SHARED_SECRED = "deadbeef";
+    
     private @Autowired WebApplicationContext context;
     private @Autowired UserDao userRepository;
     private @Autowired ProjectService projectService;
-
+    
     private MockMvc mvc;
+    private MockWebServer server;
 
     // If this is not static, for some reason the value is re-set to false before a
     // test method is invoked. However, the DB is not reset - and it should not be.
@@ -118,8 +129,11 @@ public class HumanProtocolControllerImplTest
     private static boolean initialized = false;
 
     @Before
-    public void setup()
+    public void setup() throws Exception
     {
+        server = new MockWebServer();
+        server.start();
+        
         MDC.put(KEY_REPOSITORY_PATH, "target/HumanProtocolControllerImplTest/repository");
         MDC.put(KEY_USERNAME, "USERNAME");
 
@@ -128,6 +142,7 @@ public class HumanProtocolControllerImplTest
                 .webAppContextSetup(context)
                 .alwaysDo(print())
                 .apply(SecurityMockMvcConfigurers.springSecurity())
+                .addFilters(new HumanSignatureValidationFilter(SHARED_SECRED))
                 .addFilters(new OpenCasStorageSessionForRequestFilter())
                 .build();
         // @formatter:on
@@ -139,13 +154,26 @@ public class HumanProtocolControllerImplTest
             FileSystemUtils.deleteRecursively(new File("target/HumanProtocolControllerImplTest"));
         }
     }
+    
+    @After
+    public void teardown() throws Exception {
+        server.shutdown();
+    }
 
     @Test
     public void t001_thatManifestCanCreateProject() throws Exception
     {
         File manifestFile = new File("src/test/resources/manifest/example-remote-data.json");
-
         JobManifest manifest = loadManifest(manifestFile);
+        server.enqueue(new MockResponse().setResponseCode(200).setBody(contentOf(manifestFile)));
+        
+        JobRequest jobRequest = new JobRequest();
+        jobRequest.setNetworkId(12345);
+        jobRequest.setJobAddress("myAddress");
+        jobRequest.setJobManifest(server.url("/data").uri());
+        
+        String body = toJsonString(jobRequest);
+        String signature = generateBase64Signature(SHARED_SECRED, body);
 
         assertThat(projectService.listProjects()).hasSize(0);
 
@@ -153,8 +181,9 @@ public class HumanProtocolControllerImplTest
         mvc.perform(post(API_BASE + "/" + SUBMIT_JOB)
                 .with(csrf().asHeader())
                 .with(user("admin").roles("ADMIN"))
+                .header(HEADER_X_HUMAN_SIGNATURE, signature)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(readFileToByteArray(manifestFile)))
+                .content(body))
             .andExpect(status().isCreated());
         // @formatter:on
 

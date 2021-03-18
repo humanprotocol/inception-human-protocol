@@ -16,14 +16,7 @@
  */
 package io.github.reckart.inception.humanprotocol;
 
-import org.springframework.http.ResponseEntity;
-
-import io.github.reckart.inception.humanprotocol.messages.JobRequest;
-
-public interface HumanProtocolController
+public interface HumanProtocolConstants
 {
-    static final String API_BASE = "/api/human-protocol/v1";
-    static final String SUBMIT_JOB = "submitJob";
-    
-    ResponseEntity<Void> submitJob(boolean aSignatureValue, JobRequest aJobRequest) throws Exception;
+   String HEADER_X_HUMAN_SIGNATURE = "X-human-signature";
 }

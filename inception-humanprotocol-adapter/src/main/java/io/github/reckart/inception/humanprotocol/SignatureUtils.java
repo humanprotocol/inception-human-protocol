@@ -16,14 +16,23 @@
  */
 package io.github.reckart.inception.humanprotocol;
 
-import org.springframework.http.ResponseEntity;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.commons.codec.binary.Base64.decodeBase64;
+import static org.apache.commons.codec.binary.Base64.encodeBase64String;
 
-import io.github.reckart.inception.humanprotocol.messages.JobRequest;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 
-public interface HumanProtocolController
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+public class SignatureUtils
 {
-    static final String API_BASE = "/api/human-protocol/v1";
-    static final String SUBMIT_JOB = "submitJob";
-    
-    ResponseEntity<Void> submitJob(boolean aSignatureValue, JobRequest aJobRequest) throws Exception;
+    public static String generateBase64Signature(String aSecredKey, String aPayload)
+        throws NoSuchAlgorithmException, InvalidKeyException
+    {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(decodeBase64(aSecredKey), "HmacSHA256"));
+        return encodeBase64String(mac.doFinal(aPayload.getBytes(UTF_8)));
+    }
 }
