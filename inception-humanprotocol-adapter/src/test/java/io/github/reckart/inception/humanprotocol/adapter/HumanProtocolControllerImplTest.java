@@ -27,7 +27,6 @@ import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateB
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.contentOf;
-import static org.junit.runners.MethodSorters.NAME_ASCENDING;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.MOCK;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -41,11 +40,12 @@ import java.util.List;
 
 import javax.persistence.EntityManager;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.FixMethodOrder;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -59,7 +59,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.util.FileSystemUtils;
@@ -100,17 +100,17 @@ import io.github.reckart.inception.humanprotocol.HumanProtocolControllerImpl;
 import io.github.reckart.inception.humanprotocol.messages.JobRequest;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
 import io.github.reckart.inception.humanprotocol.security.HumanSignatureValidationFilter;
-import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.MockWebServer;
+import mockwebserver3.MockResponse;
+import mockwebserver3.MockWebServer;
 
-@RunWith(SpringRunner.class)
+@ExtendWith(SpringExtension.class)
 @EnableAutoConfiguration(exclude = LiquibaseAutoConfiguration.class)
 @SpringBootTest(webEnvironment = MOCK, properties = {
         "repository.path=target/HumanProtocolControllerImplTest/repository" })
 @EnableWebSecurity
 @EntityScan({ "de.tudarmstadt.ukp.clarin.webanno.model",
         "de.tudarmstadt.ukp.clarin.webanno.security.model" })
-@FixMethodOrder(NAME_ASCENDING)
+@TestMethodOrder(MethodOrderer.MethodName.class)
 public class HumanProtocolControllerImplTest
 {
     private static final String SHARED_SECRED = "deadbeef";
@@ -128,7 +128,7 @@ public class HumanProtocolControllerImplTest
     // in the DB and clean the test repository once!
     private static boolean initialized = false;
 
-    @Before
+    @BeforeEach
     public void setup() throws Exception
     {
         server = new MockWebServer();
@@ -155,7 +155,7 @@ public class HumanProtocolControllerImplTest
         }
     }
     
-    @After
+    @AfterEach
     public void teardown() throws Exception {
         server.shutdown();
     }

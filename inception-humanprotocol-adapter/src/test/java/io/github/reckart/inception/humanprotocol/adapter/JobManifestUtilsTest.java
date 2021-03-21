@@ -22,7 +22,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.github.reckart.inception.humanprotocol.JobManifestUtils;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
