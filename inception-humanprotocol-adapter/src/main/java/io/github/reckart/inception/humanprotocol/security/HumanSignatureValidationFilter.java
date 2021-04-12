@@ -34,16 +34,26 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.wicket.util.lang.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HumanSignatureValidationFilter
     implements Filter
 {
-    private static final String PARAM_SECRET_KEY = "secretKey";
+    private final Logger log = LoggerFactory.getLogger(getClass());
+    
+    public static final String PARAM_SECRET_KEY = "secretKey";
+    public static final String ANY_KEY = "*";
 
     public static final String ATTR_SIGNATURE_VALID = "io.github.reckart.inception."
             + "humanprotocol.security.HumanSignatureValidationFilter#signatureValue";
     
     private byte[] secretKey;
+
+    public HumanSignatureValidationFilter()
+    {
+        // Initialization happens in init method
+    }
 
     public HumanSignatureValidationFilter(byte[] aSecretKey)
     {
@@ -60,7 +70,12 @@ public class HumanSignatureValidationFilter
     {
         Filter.super.init(aFilterConfig);
         
-        secretKey = decodeBase64(aFilterConfig.getInitParameter(PARAM_SECRET_KEY));
+        if (ANY_KEY.equals(aFilterConfig.getInitParameter(PARAM_SECRET_KEY))) {
+            secretKey = null;
+        }
+        else {
+            secretKey = decodeBase64(aFilterConfig.getInitParameter(PARAM_SECRET_KEY));
+        }
     }
     
     @Override
@@ -73,6 +88,13 @@ public class HumanSignatureValidationFilter
             return;
         }
 
+        // If no secret key is set (i.e. any key is accepted), we always mark the signature as valid
+        if (secretKey == null) {
+            aRequest.setAttribute(ATTR_SIGNATURE_VALID, true);
+            aChain.doFilter(aRequest, aResponse);
+            return;
+        }
+        
         HttpServletRequest httpRequest = (HttpServletRequest) aRequest;
         String signature = httpRequest.getHeader(HEADER_X_HUMAN_SIGNATURE);
 

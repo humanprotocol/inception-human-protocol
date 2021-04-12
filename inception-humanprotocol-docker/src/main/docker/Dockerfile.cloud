@@ -30,10 +30,29 @@ RUN useradd -m inception \
     && chown -R inception /export
 VOLUME /export
 
-EXPOSE 8080
+ENV JAVA_OPTS="-XX:+UseContainerSupport"
 
 USER inception
 
-ENV JAVA_OPTS="-Xmx750m"
-
-CMD java ${JAVA_OPTS} -XX:+UseContainerSupport -Djava.awt.headless=true -Dinception.home=/export -jar inception-app-standalone.jar
+CMD java ${JAVA_OPTS} \
+  -Drecommender.enabled=false \
+  -Ddebug.casDoctor.forceReleaseBehavior=true \
+  -Dsecurity.default-admin-password=fb4b033dbf48d6397f8a2ac9c2a5230db3040293c3e5d885da1a92bc4eb79a6341ffbd5531a650ce \
+  -Dsecurity.default-admin-remote-access=true \
+  -Dhuman-protocol.secret-key=* \
+  -Dremote-api.enabled=true \
+  -Dsharing.invites.enabled=true \
+  -Dworkload.dynamic.enabled=true \
+  -Drecommender.enabled=false \
+  -Dsearch.enabled=false \
+  -Dknowledge-base.enabled=false \
+  -Dexternal-search.enabled=false \
+  -Ddocumentmetadata.enabled=false \
+  -Dui.html.enabled=false \
+  -Dui.pdf.enabled=false \
+  -Dserver.port=${PORT} \
+  -Dserver.tomcat.max-threads=4 \
+  -Djava.awt.headless=true \
+  -Dinception.home=/export \
+  -Dtelemetry.auto-respond=REJECT \
+  -jar inception-app-standalone.jar

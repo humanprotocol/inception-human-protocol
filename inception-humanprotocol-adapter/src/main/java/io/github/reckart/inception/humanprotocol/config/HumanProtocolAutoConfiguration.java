@@ -18,32 +18,27 @@ package io.github.reckart.inception.humanprotocol.config;
 
 import org.springdoc.core.GroupedOpenApi;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Lazy;
 
-import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
-import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import io.github.reckart.inception.humanprotocol.HumanProtocolController;
 import io.github.reckart.inception.humanprotocol.HumanProtocolControllerImpl;
 import io.swagger.v3.oas.models.info.Info;
 
-@Lazy(false)
 @Configuration
+@EnableConfigurationProperties(HumanProtocolPropertiesImpl.class)
 @AutoConfigureBefore({ WebMvcAutoConfiguration.class })
 public class HumanProtocolAutoConfiguration
 {
-    @Lazy(false)
-    @ConditionalOnMissingBean
     @Bean
-    public HumanProtocolController humanProtocolController(ProjectService aProjectService,
-            DocumentService aDocumentService,
-            AnnotationSchemaService aSchemaService)
+    public HumanProtocolController humanProtocolController(ApplicationContext aApplicationContext,
+            ProjectService aProjectService)
     {
-        return new HumanProtocolControllerImpl(aProjectService, aDocumentService, aSchemaService);
+        return new HumanProtocolControllerImpl(aApplicationContext, aProjectService);
     }
 
     @Bean
@@ -56,5 +51,11 @@ public class HumanProtocolAutoConfiguration
                             .title("Human Protocol API") //
                             .version("1"));
                 }).build();
+    }
+
+    @Bean
+    public HumanProtocolWebInitializer humanProtocolWebInitializer()
+    {
+        return new HumanProtocolWebInitializer();
     }
 }

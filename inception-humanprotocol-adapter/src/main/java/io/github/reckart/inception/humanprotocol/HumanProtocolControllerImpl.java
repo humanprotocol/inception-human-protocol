@@ -26,6 +26,8 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 import java.io.IOException;
 
+import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
@@ -33,8 +35,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
-import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
 import io.github.reckart.inception.humanprotocol.messages.JobRequest;
@@ -46,18 +46,16 @@ import io.swagger.v3.oas.annotations.Operation;
 public class HumanProtocolControllerImpl
     implements HumanProtocolController
 {
+    private final ApplicationContext applicationContext;
     private final ProjectService projectService;
-    private final DocumentService documentService;
-    private final AnnotationSchemaService schemaService;
 
-    public HumanProtocolControllerImpl(ProjectService aProjectService,
-            DocumentService aDocumentService, AnnotationSchemaService aSchemaService)
+    public HumanProtocolControllerImpl(ApplicationContext aApplicationContext,
+            ProjectService aProjectService)
     {
+        applicationContext = aApplicationContext;
         projectService = aProjectService;
-        documentService = aDocumentService;
-        schemaService = aSchemaService;
     }
-    
+
     @Override
     @Operation(summary = "Submit new job")
     @PostMapping(path = "/" + SUBMIT_JOB, //
@@ -65,22 +63,30 @@ public class HumanProtocolControllerImpl
             produces = ALL_VALUE)
     public ResponseEntity<Void> submitJob(
             @RequestAttribute(ATTR_SIGNATURE_VALID) boolean aSignatureValid,
-            @RequestBody JobRequest aJobRequest) throws Exception
+            @RequestBody JobRequest aJobRequest)
+        throws Exception
     {
         if (!aSignatureValid) {
             return new ResponseEntity<>(BAD_REQUEST);
         }
-        
+
         JobManifest manifest = loadManifest(aJobRequest.getJobManifest());
         createJob(manifest);
         return new ResponseEntity<>(CREATED);
     }
-    
-    public void createJob(JobManifest aManifest) throws IOException {
+
+    public void createJob(JobManifest aManifest) throws IOException
+    {
         Project project = new Project(aManifest.getJobId());
         project.setDescription(aManifest.getRequesterQuestion().get("en"));
         projectService.createProject(project);
-        projectService.initializeProject(project, asList(
-                new HumanProtocolProjectInitializer(aManifest, documentService, schemaService)));
+        
+        HumanProtocolProjectInitializer initializer = new HumanProtocolProjectInitializer(aManifest);
+        
+        AutowireCapableBeanFactory factory = applicationContext.getAutowireCapableBeanFactory();
+        factory.autowireBean(initializer);
+        factory.initializeBean(initializer, "transientInitializer");
+        
+        projectService.initializeProject(project, asList(initializer));
     }
 }

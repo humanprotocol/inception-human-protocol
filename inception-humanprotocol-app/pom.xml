@@ -24,6 +24,12 @@
       <groupId>io.github.reckart</groupId>
       <artifactId>inception-humanprotocol-adapter</artifactId>
     </dependency>
+    
+    <dependency>
+        <groupId>com.github.blagerweij</groupId>
+        <artifactId>liquibase-sessionlock</artifactId>
+        <version>1.4.0</version>
+    </dependency>
   </dependencies>
 
   <build>

@@ -52,6 +52,7 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -67,8 +68,8 @@ import org.springframework.web.context.WebApplicationContext;
 
 import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
 import de.tudarmstadt.ukp.clarin.webanno.api.CasStorageService;
+import de.tudarmstadt.ukp.clarin.webanno.api.DocumentImportExportService;
 import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
-import de.tudarmstadt.ukp.clarin.webanno.api.ImportExportService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.RepositoryProperties;
 import de.tudarmstadt.ukp.clarin.webanno.api.annotation.feature.FeatureSupportRegistry;
@@ -81,9 +82,11 @@ import de.tudarmstadt.ukp.clarin.webanno.api.annotation.layer.SpanLayerSupport;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.AnnotationSchemaServiceImpl;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.BackupProperties;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.CasStorageServiceImpl;
+import de.tudarmstadt.ukp.clarin.webanno.api.dao.DocumentImportExportServiceImpl;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.DocumentServiceImpl;
-import de.tudarmstadt.ukp.clarin.webanno.api.dao.ImportExportServiceImpl;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.casstorage.OpenCasStorageSessionForRequestFilter;
+import de.tudarmstadt.ukp.clarin.webanno.api.dao.casstorage.config.CasStoragePropertiesImpl;
+import de.tudarmstadt.ukp.clarin.webanno.api.dao.docimexport.config.DocumentImportExportServicePropertiesImpl;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.export.ProjectExportServiceImpl;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportService;
 import de.tudarmstadt.ukp.clarin.webanno.api.project.ProjectInitializer;
@@ -96,6 +99,11 @@ import de.tudarmstadt.ukp.clarin.webanno.security.model.Role;
 import de.tudarmstadt.ukp.clarin.webanno.security.model.User;
 import de.tudarmstadt.ukp.clarin.webanno.support.ApplicationContextProvider;
 import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
+import de.tudarmstadt.ukp.inception.workload.extension.WorkloadManagerExtension;
+import de.tudarmstadt.ukp.inception.workload.extension.WorkloadManagerExtensionPoint;
+import de.tudarmstadt.ukp.inception.workload.extension.WorkloadManagerExtensionPointImpl;
+import de.tudarmstadt.ukp.inception.workload.model.WorkloadManagementService;
+import de.tudarmstadt.ukp.inception.workload.model.WorkloadManagementServiceImpl;
 import io.github.reckart.inception.humanprotocol.HumanProtocolControllerImpl;
 import io.github.reckart.inception.humanprotocol.messages.JobRequest;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
@@ -114,11 +122,11 @@ import mockwebserver3.MockWebServer;
 public class HumanProtocolControllerImplTest
 {
     private static final String SHARED_SECRED = "deadbeef";
-    
+
     private @Autowired WebApplicationContext context;
     private @Autowired UserDao userRepository;
     private @Autowired ProjectService projectService;
-    
+
     private MockMvc mvc;
     private MockWebServer server;
 
@@ -133,7 +141,7 @@ public class HumanProtocolControllerImplTest
     {
         server = new MockWebServer();
         server.start();
-        
+
         MDC.put(KEY_REPOSITORY_PATH, "target/HumanProtocolControllerImplTest/repository");
         MDC.put(KEY_USERNAME, "USERNAME");
 
@@ -154,9 +162,10 @@ public class HumanProtocolControllerImplTest
             FileSystemUtils.deleteRecursively(new File("target/HumanProtocolControllerImplTest"));
         }
     }
-    
+
     @AfterEach
-    public void teardown() throws Exception {
+    public void teardown() throws Exception
+    {
         server.shutdown();
     }
 
@@ -166,12 +175,12 @@ public class HumanProtocolControllerImplTest
         File manifestFile = new File("src/test/resources/manifest/example-remote-data.json");
         JobManifest manifest = loadManifest(manifestFile);
         server.enqueue(new MockResponse().setResponseCode(200).setBody(contentOf(manifestFile)));
-        
+
         JobRequest jobRequest = new JobRequest();
         jobRequest.setNetworkId(12345);
         jobRequest.setJobAddress("myAddress");
         jobRequest.setJobManifest(server.url("/data").uri());
-        
+
         String body = toJsonString(jobRequest);
         String signature = generateBase64Signature(SHARED_SECRED, body);
 
@@ -203,16 +212,14 @@ public class HumanProtocolControllerImplTest
         private @Autowired EntityManager entityManager;
 
         @Bean
-        public HumanProtocolControllerImpl humanProtocolController(ProjectService aProjectService,
-                DocumentService aDocumentService, AnnotationSchemaService aSchemaService)
+        public HumanProtocolControllerImpl humanProtocolController(
+                ApplicationContext aApplicationContext, ProjectService aProjectService)
         {
-            return new HumanProtocolControllerImpl(aProjectService, aDocumentService,
-                    aSchemaService);
+            return new HumanProtocolControllerImpl(aApplicationContext, aProjectService);
         }
 
         @Bean
         public ProjectService projectService(UserDao aUserRepository,
-                ApplicationEventPublisher aApplicationEventPublisher,
                 RepositoryProperties aRepositoryProperties,
                 @Lazy @Autowired(required = false) List<ProjectInitializer> aInitializerProxy)
         {
@@ -235,8 +242,8 @@ public class HumanProtocolControllerImplTest
 
         @Bean
         public DocumentService documentService(RepositoryProperties aRepositoryProperties,
-                CasStorageService aCasStorageService, ImportExportService aImportExportService,
-                ProjectService aProjectService)
+                CasStorageService aCasStorageService,
+                DocumentImportExportService aImportExportService, ProjectService aProjectService)
         {
             return new DocumentServiceImpl(aRepositoryProperties, aCasStorageService,
                     aImportExportService, aProjectService, applicationEventPublisher,
@@ -260,14 +267,15 @@ public class HumanProtocolControllerImplTest
         public CasStorageService casStorageService()
         {
             return new CasStorageServiceImpl(null, null, repositoryProperties(),
-                    backupProperties());
+                    new CasStoragePropertiesImpl(), backupProperties());
         }
 
         @Bean
-        public ImportExportService importExportService()
+        public DocumentImportExportService importExportService()
         {
-            return new ImportExportServiceImpl(repositoryProperties(),
-                    asList(new TextFormatSupport()), casStorageService(), annotationService());
+            return new DocumentImportExportServiceImpl(repositoryProperties(),
+                    asList(new TextFormatSupport()), casStorageService(), annotationService(),
+                    new DocumentImportExportServicePropertiesImpl());
         }
 
         @Bean
@@ -292,6 +300,20 @@ public class HumanProtocolControllerImplTest
         public ApplicationContextProvider contextProvider()
         {
             return new ApplicationContextProvider();
+        }
+
+        @Bean
+        public WorkloadManagerExtensionPoint workloadExtensionPoint(
+                List<WorkloadManagerExtension<?>> aWorkloadExtensions)
+        {
+            return new WorkloadManagerExtensionPointImpl(aWorkloadExtensions);
+        }
+
+        @Bean
+        public WorkloadManagementService workloadManagementService(
+                WorkloadManagerExtensionPoint aWorkloadManagerExtensionPoint)
+        {
+            return new WorkloadManagementServiceImpl(entityManager, aWorkloadManagerExtensionPoint);
         }
 
         @Bean
