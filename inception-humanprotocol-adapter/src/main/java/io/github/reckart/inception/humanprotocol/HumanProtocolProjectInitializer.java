@@ -27,6 +27,7 @@ import static java.io.File.createTempFile;
 import static java.lang.Boolean.TRUE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
+import static java.util.Calendar.MONTH;
 import static org.apache.commons.io.FilenameUtils.getExtension;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.uima.cas.CAS.TYPE_NAME_STRING;
@@ -139,7 +140,7 @@ public class HumanProtocolProjectInitializer
         } else {
             // By default, we use six months until the link expires
             Calendar expirationCalendar = Calendar.getInstance();
-            expirationCalendar.add(Calendar.MONTH, 6);
+            expirationCalendar.add(MONTH, 6);
             expirationDate = expirationCalendar.getTime();
         }
         
@@ -147,8 +148,12 @@ public class HumanProtocolProjectInitializer
         
         ProjectInvite invite = inviteService.readProjectInvite(aProject);
         invite.setGuestAccessible(true);
-        invite.setInvitationText("To earn credit for your annotations, please enter your Ethereum "
-                + "walled address as user ID below.");
+        invite.setInvitationText(String.join("\n",
+                "## Welcome!",
+                "",
+                "To earn credit for your annotations, please enter your Ethereum "
+                + "walled address as user ID below."));
+        invite.setUserIdPlaceholder("Ethereum walled address");
         inviteService.writeProjectInvite(invite);
     }
 
