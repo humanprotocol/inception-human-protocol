@@ -17,7 +17,6 @@
 package io.github.reckart.inception.humanprotocol.adapter;
 
 import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.toJsonString;
-import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_REPOSITORY_PATH;
 import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_USERNAME;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_HUMAN_SIGNATURE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolController.API_BASE;
@@ -46,13 +45,13 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -98,13 +97,9 @@ import de.tudarmstadt.ukp.clarin.webanno.security.UserDaoImpl;
 import de.tudarmstadt.ukp.clarin.webanno.security.model.Role;
 import de.tudarmstadt.ukp.clarin.webanno.security.model.User;
 import de.tudarmstadt.ukp.clarin.webanno.support.ApplicationContextProvider;
+import de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging;
+import de.tudarmstadt.ukp.clarin.webanno.support.logging.LoggingFilter;
 import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
-import de.tudarmstadt.ukp.inception.workload.extension.WorkloadManagerExtension;
-import de.tudarmstadt.ukp.inception.workload.extension.WorkloadManagerExtensionPoint;
-import de.tudarmstadt.ukp.inception.workload.extension.WorkloadManagerExtensionPointImpl;
-import de.tudarmstadt.ukp.inception.workload.model.WorkloadManagementService;
-import de.tudarmstadt.ukp.inception.workload.model.WorkloadManagementServiceImpl;
-import io.github.reckart.inception.humanprotocol.HumanProtocolControllerImpl;
 import io.github.reckart.inception.humanprotocol.messages.JobRequest;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
 import io.github.reckart.inception.humanprotocol.security.HumanSignatureValidationFilter;
@@ -113,16 +108,20 @@ import mockwebserver3.MockWebServer;
 
 @ExtendWith(SpringExtension.class)
 @EnableAutoConfiguration(exclude = LiquibaseAutoConfiguration.class)
-@SpringBootTest(webEnvironment = MOCK, properties = {
-        "repository.path=target/HumanProtocolControllerImplTest/repository" })
+@SpringBootTest(webEnvironment = MOCK, properties = { //
+        "workload.dynamic.enabled=true", //
+        "sharing.invites.enabled=true"})
 @EnableWebSecurity
-@EntityScan({ "de.tudarmstadt.ukp.clarin.webanno.model",
+@EntityScan({ "de.tudarmstadt.ukp.clarin.webanno.model", "de.tudarmstadt.ukp.inception",
         "de.tudarmstadt.ukp.clarin.webanno.security.model" })
 @TestMethodOrder(MethodOrderer.MethodName.class)
 public class HumanProtocolControllerImplTest
 {
+    static @TempDir File repositoryDir;
+    
     private static final String SHARED_SECRED = "deadbeef";
 
+    private @Autowired RepositoryProperties repositoryProperties;
     private @Autowired WebApplicationContext context;
     private @Autowired UserDao userRepository;
     private @Autowired ProjectService projectService;
@@ -139,10 +138,12 @@ public class HumanProtocolControllerImplTest
     @BeforeEach
     public void setup() throws Exception
     {
+        repositoryProperties.setPath(repositoryDir);
+        MDC.put(Logging.KEY_REPOSITORY_PATH, repositoryProperties.getPath().toString());
+
         server = new MockWebServer();
         server.start();
 
-        MDC.put(KEY_REPOSITORY_PATH, "target/HumanProtocolControllerImplTest/repository");
         MDC.put(KEY_USERNAME, "USERNAME");
 
         // @formatter:off
@@ -150,6 +151,7 @@ public class HumanProtocolControllerImplTest
                 .webAppContextSetup(context)
                 .alwaysDo(print())
                 .apply(SecurityMockMvcConfigurers.springSecurity())
+                .addFilters(new LoggingFilter(repositoryProperties.getPath().toString()))
                 .addFilters(new HumanSignatureValidationFilter(SHARED_SECRED))
                 .addFilters(new OpenCasStorageSessionForRequestFilter())
                 .build();
@@ -212,13 +214,6 @@ public class HumanProtocolControllerImplTest
         private @Autowired EntityManager entityManager;
 
         @Bean
-        public HumanProtocolControllerImpl humanProtocolController(
-                ApplicationContext aApplicationContext, ProjectService aProjectService)
-        {
-            return new HumanProtocolControllerImpl(aApplicationContext, aProjectService);
-        }
-
-        @Bean
         public ProjectService projectService(UserDao aUserRepository,
                 RepositoryProperties aRepositoryProperties,
                 @Lazy @Autowired(required = false) List<ProjectInitializer> aInitializerProxy)
@@ -251,9 +246,9 @@ public class HumanProtocolControllerImplTest
         }
 
         @Bean
-        public AnnotationSchemaService annotationService()
+        public AnnotationSchemaService annotationService(LayerSupportRegistry aLayerSupportRegistry)
         {
-            return new AnnotationSchemaServiceImpl(layerSupportRegistry(), featureSupportRegistry(),
+            return new AnnotationSchemaServiceImpl(aLayerSupportRegistry, featureSupportRegistry(),
                     entityManager);
         }
 
@@ -264,17 +259,19 @@ public class HumanProtocolControllerImplTest
         }
 
         @Bean
-        public CasStorageService casStorageService()
+        public CasStorageService casStorageService(RepositoryProperties aRepositoryProperties)
         {
-            return new CasStorageServiceImpl(null, null, repositoryProperties(),
+            return new CasStorageServiceImpl(null, null, aRepositoryProperties,
                     new CasStoragePropertiesImpl(), backupProperties());
         }
 
         @Bean
-        public DocumentImportExportService importExportService()
+        public DocumentImportExportService importExportService(
+                RepositoryProperties aRepositoryProperties, CasStorageService aCasStorageService,
+                AnnotationSchemaService aAnnotationSchemaService)
         {
-            return new DocumentImportExportServiceImpl(repositoryProperties(),
-                    asList(new TextFormatSupport()), casStorageService(), annotationService(),
+            return new DocumentImportExportServiceImpl(aRepositoryProperties,
+                    asList(new TextFormatSupport()), aCasStorageService, aAnnotationSchemaService,
                     new DocumentImportExportServicePropertiesImpl());
         }
 
@@ -303,26 +300,13 @@ public class HumanProtocolControllerImplTest
         }
 
         @Bean
-        public WorkloadManagerExtensionPoint workloadExtensionPoint(
-                List<WorkloadManagerExtension<?>> aWorkloadExtensions)
-        {
-            return new WorkloadManagerExtensionPointImpl(aWorkloadExtensions);
-        }
-
-        @Bean
-        public WorkloadManagementService workloadManagementService(
-                WorkloadManagerExtensionPoint aWorkloadManagerExtensionPoint)
-        {
-            return new WorkloadManagementServiceImpl(entityManager, aWorkloadManagerExtensionPoint);
-        }
-
-        @Bean
-        public LayerSupportRegistry layerSupportRegistry()
+        public LayerSupportRegistry layerSupportRegistry(
+                FeatureSupportRegistry aFeatureSupportRegistry)
         {
             return new LayerSupportRegistryImpl(
-                    asList(new SpanLayerSupport(featureSupportRegistry(), null, null),
-                            new RelationLayerSupport(featureSupportRegistry(), null, null),
-                            new ChainLayerSupport(featureSupportRegistry(), null, null)));
+                    asList(new SpanLayerSupport(aFeatureSupportRegistry, null, null),
+                            new RelationLayerSupport(aFeatureSupportRegistry, null, null),
+                            new ChainLayerSupport(aFeatureSupportRegistry, null, null)));
         }
     }
 }
