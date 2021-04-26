@@ -25,8 +25,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
+import de.tudarmstadt.ukp.clarin.webanno.api.RepositoryProperties;
 import io.github.reckart.inception.humanprotocol.HumanProtocolController;
 import io.github.reckart.inception.humanprotocol.HumanProtocolControllerImpl;
+import io.github.reckart.inception.humanprotocol.HumanProtocolService;
+import io.github.reckart.inception.humanprotocol.HumanProtocolServiceImpl;
 import io.swagger.v3.oas.models.info.Info;
 
 @Configuration
@@ -36,9 +39,9 @@ public class HumanProtocolAutoConfiguration
 {
     @Bean
     public HumanProtocolController humanProtocolController(ApplicationContext aApplicationContext,
-            ProjectService aProjectService)
+            ProjectService aProjectService, HumanProtocolService aHmtService)
     {
-        return new HumanProtocolControllerImpl(aApplicationContext, aProjectService);
+        return new HumanProtocolControllerImpl(aApplicationContext, aProjectService, aHmtService);
     }
 
     @Bean
@@ -57,5 +60,11 @@ public class HumanProtocolAutoConfiguration
     public HumanProtocolWebInitializer humanProtocolWebInitializer()
     {
         return new HumanProtocolWebInitializer();
+    }
+
+    @Bean
+    public HumanProtocolService humanProtocolService(RepositoryProperties aRepositoryProperties)
+    {
+        return new HumanProtocolServiceImpl(aRepositoryProperties);
     }
 }
