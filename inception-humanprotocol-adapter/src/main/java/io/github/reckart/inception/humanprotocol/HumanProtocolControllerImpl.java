@@ -16,7 +16,6 @@
  */
 package io.github.reckart.inception.humanprotocol;
 
-import static io.github.reckart.inception.humanprotocol.JobManifestUtils.loadManifest;
 import static io.github.reckart.inception.humanprotocol.security.HumanSignatureValidationFilter.ATTR_SIGNATURE_VALID;
 import static java.util.Arrays.asList;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -25,7 +24,10 @@ import static org.springframework.http.MediaType.ALL_VALUE;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 import java.io.IOException;
+import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.ResponseEntity;
@@ -46,14 +48,18 @@ import io.swagger.v3.oas.annotations.Operation;
 public class HumanProtocolControllerImpl
     implements HumanProtocolController
 {
+    private final Logger log = LoggerFactory.getLogger(getClass());
+    
     private final ApplicationContext applicationContext;
     private final ProjectService projectService;
+    private final HumanProtocolService hmtService;
 
     public HumanProtocolControllerImpl(ApplicationContext aApplicationContext,
-            ProjectService aProjectService)
+            ProjectService aProjectService, HumanProtocolService aHmtService)
     {
         applicationContext = aApplicationContext;
         projectService = aProjectService;
+        hmtService = aHmtService;
     }
 
     @Override
@@ -70,23 +76,46 @@ public class HumanProtocolControllerImpl
             return new ResponseEntity<>(BAD_REQUEST);
         }
 
-        JobManifest manifest = loadManifest(aJobRequest.getJobManifest());
-        createJob(manifest);
+        createJob(aJobRequest);
+        
         return new ResponseEntity<>(CREATED);
     }
 
-    public void createJob(JobManifest aManifest) throws IOException
+    public void createJob(JobRequest aJobRequest) throws IOException
     {
-        Project project = new Project(aManifest.getJobId());
-        project.setDescription(aManifest.getRequesterQuestion().get("en"));
+        Project project = new Project(aJobRequest.getJobAddress());
         projectService.createProject(project);
         
-        HumanProtocolProjectInitializer initializer = new HumanProtocolProjectInitializer(aManifest);
-        
-        AutowireCapableBeanFactory factory = applicationContext.getAutowireCapableBeanFactory();
-        factory.autowireBean(initializer);
-        factory.initializeBean(initializer, "transientInitializer");
-        
-        projectService.initializeProject(project, asList(initializer));
+        try {
+            hmtService.importJobManifest(project, aJobRequest.getJobManifest().toURL());
+            JobManifest manifest = hmtService.readJobManifest(project).get();
+            
+            if (!Objects.equals(manifest.getJobId(), aJobRequest.getJobAddress())) {
+                throw new IllegalArgumentException("Job ID in manifest [" + manifest.getJobId()
+                        + "] does not match job ID in request [" + aJobRequest.getJobAddress()
+                        + "]");
+            }
+            
+            project.setDescription(manifest.getRequesterQuestion().get("en"));
+            projectService.updateProject(project);
+    
+            HumanProtocolProjectInitializer initializer = new HumanProtocolProjectInitializer(manifest);
+            
+            AutowireCapableBeanFactory factory = applicationContext.getAutowireCapableBeanFactory();
+            factory.autowireBean(initializer);
+            factory.initializeBean(initializer, "transientInitializer");
+            
+            projectService.initializeProject(project, asList(initializer));
+        }
+        catch (Exception e) {
+            try {
+                projectService.removeProject(project);
+            }
+            catch (Exception ex) {
+                log.error("Unable to clean up project after failing to accept job submission", ex);
+            }
+            
+            throw e;
+        }
     }
 }

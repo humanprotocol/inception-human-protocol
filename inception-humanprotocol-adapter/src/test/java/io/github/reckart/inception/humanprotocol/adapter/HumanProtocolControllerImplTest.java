@@ -17,6 +17,7 @@
 package io.github.reckart.inception.humanprotocol.adapter;
 
 import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.toJsonString;
+import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.toPrettyJsonString;
 import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_USERNAME;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_HUMAN_SIGNATURE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolController.API_BASE;
@@ -24,6 +25,7 @@ import static io.github.reckart.inception.humanprotocol.HumanProtocolController.
 import static io.github.reckart.inception.humanprotocol.JobManifestUtils.loadManifest;
 import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateBase64Signature;
 import static java.util.Arrays.asList;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.contentOf;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.MOCK;
@@ -36,6 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.io.File;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import javax.persistence.EntityManager;
 
@@ -100,6 +103,7 @@ import de.tudarmstadt.ukp.clarin.webanno.support.ApplicationContextProvider;
 import de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging;
 import de.tudarmstadt.ukp.clarin.webanno.support.logging.LoggingFilter;
 import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
+import io.github.reckart.inception.humanprotocol.HumanProtocolServiceImpl;
 import io.github.reckart.inception.humanprotocol.messages.JobRequest;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
 import io.github.reckart.inception.humanprotocol.security.HumanSignatureValidationFilter;
@@ -125,6 +129,7 @@ public class HumanProtocolControllerImplTest
     private @Autowired WebApplicationContext context;
     private @Autowired UserDao userRepository;
     private @Autowired ProjectService projectService;
+    private @Autowired HumanProtocolServiceImpl hmtService;
 
     private MockMvc mvc;
     private MockWebServer server;
@@ -180,7 +185,7 @@ public class HumanProtocolControllerImplTest
 
         JobRequest jobRequest = new JobRequest();
         jobRequest.setNetworkId(12345);
-        jobRequest.setJobAddress("myAddress");
+        jobRequest.setJobAddress("e376b295-637a-4f6f-ba5c-3662a5d57f07");
         jobRequest.setJobManifest(server.url("/data").uri());
 
         String body = toJsonString(jobRequest);
@@ -202,9 +207,18 @@ public class HumanProtocolControllerImplTest
                 .as("Project has been created from the job manifest using the job-ID as name")
                 .isTrue();
 
-        assertThat(projectService.getProject(manifest.getJobId()))
+        Project project = projectService.getProject(manifest.getJobId());
+
+        assertThat(project)
                 .as("Project description has been set from manifest")
                 .extracting(Project::getDescription).isNotNull();
+        
+        Optional<JobManifest> storedManifest = hmtService.readJobManifest(project);
+        assertThat(storedManifest).isPresent();
+        assertThat(contentOf(hmtService.getManifestFile(project).toFile()))
+                .isEqualTo(contentOf(manifestFile));
+        assertThatJson(toPrettyJsonString(hmtService.readJobManifest(project).get()))
+                .isEqualTo(toPrettyJsonString(manifest));
     }
 
     @Configuration
