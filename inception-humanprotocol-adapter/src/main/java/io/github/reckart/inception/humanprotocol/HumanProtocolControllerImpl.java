@@ -24,8 +24,6 @@ import static org.springframework.http.MediaType.ALL_VALUE;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 import java.io.IOException;
-import java.util.Objects;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
@@ -87,15 +85,11 @@ public class HumanProtocolControllerImpl
         projectService.createProject(project);
         
         try {
+            hmtService.writeJobRequest(project, aJobRequest);
+            
             hmtService.importJobManifest(project, aJobRequest.getJobManifest().toURL());
+            
             JobManifest manifest = hmtService.readJobManifest(project).get();
-            
-            if (!Objects.equals(manifest.getJobId(), aJobRequest.getJobAddress())) {
-                throw new IllegalArgumentException("Job ID in manifest [" + manifest.getJobId()
-                        + "] does not match job ID in request [" + aJobRequest.getJobAddress()
-                        + "]");
-            }
-            
             project.setDescription(manifest.getRequesterQuestion().get("en"));
             projectService.updateProject(project);
     

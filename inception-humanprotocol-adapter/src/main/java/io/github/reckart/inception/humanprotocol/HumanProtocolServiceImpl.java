@@ -16,6 +16,7 @@
  */
 package io.github.reckart.inception.humanprotocol;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.createDirectories;
 import static java.nio.file.Files.exists;
 import static java.nio.file.Files.newOutputStream;
@@ -24,13 +25,17 @@ import static org.apache.commons.io.IOUtils.copyLarge;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Writer;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
 import de.tudarmstadt.ukp.clarin.webanno.api.RepositoryProperties;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
+import de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil;
 import io.github.reckart.inception.humanprotocol.config.HumanProtocolAutoConfiguration;
+import io.github.reckart.inception.humanprotocol.messages.JobRequest;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
 
 /**
@@ -60,16 +65,46 @@ public class HumanProtocolServiceImpl
 
         return Optional.of(JobManifestUtils.loadManifest(manifestFile.toFile()));
     }
-    
+
     @Override
-    public synchronized void importJobManifest(Project aProject, URL aManifestUrl) throws IOException
+    public synchronized Optional<JobRequest> readJobRequest(Project aProject) throws IOException
+    {
+        Path jobRequstFile = getJobRequestFile(aProject);
+
+        if (!exists(jobRequstFile)) {
+            return Optional.empty();
+        }
+
+        try (InputStream is = Files.newInputStream(jobRequstFile)) {
+            return Optional.of(JSONUtil.fromJsonStream(JobRequest.class, is));
+        }
+    }
+
+    @Override
+    public synchronized void writeJobRequest(Project aProject, JobRequest aJobRequest)
+        throws IOException
+    {
+        Path jobRequstFile = getJobRequestFile(aProject);
+
+        if (!exists(jobRequstFile)) {
+            createDirectories(jobRequstFile.getParent());
+        }
+
+        try (Writer out = Files.newBufferedWriter(jobRequstFile, UTF_8)) {
+            out.write(JSONUtil.toPrettyJsonString(aJobRequest));
+        }
+    }
+
+    @Override
+    public synchronized void importJobManifest(Project aProject, URL aManifestUrl)
+        throws IOException
     {
         Path manifestFile = getManifestFile(aProject);
 
         if (!exists(manifestFile)) {
             createDirectories(manifestFile.getParent());
         }
-        
+
         try (InputStream is = aManifestUrl.openStream();
                 OutputStream os = newOutputStream(manifestFile)) {
             copyLarge(is, os);
@@ -79,5 +114,10 @@ public class HumanProtocolServiceImpl
     public Path getManifestFile(Project aProject)
     {
         return repositoryProperties.getPath().toPath().resolve("hmt").resolve("job-manifest.json");
+    }
+
+    public Path getJobRequestFile(Project aProject)
+    {
+        return repositoryProperties.getPath().toPath().resolve("hmt").resolve("job-request.json");
     }
 }

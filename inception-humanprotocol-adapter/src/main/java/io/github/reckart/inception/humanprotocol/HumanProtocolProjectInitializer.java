@@ -90,7 +90,6 @@ public class HumanProtocolProjectInitializer
     private @Autowired ProjectService projectService;
     private @Autowired UserDao userService;
     private @Autowired InviteService inviteService;
-    private @Autowired HumanProtocolService hmtService;
     
     private final JobManifest manifest;
 
