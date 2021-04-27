@@ -23,6 +23,9 @@ public class HumanProtocolPropertiesImpl
     implements HumanProtocolProperties
 {
     private String secretKey;
+    private String metaApiUrl;
+    private String apiKey;
+    private int exchangeId;
 
     @Override
     public String getSecretKey()
@@ -33,5 +36,38 @@ public class HumanProtocolPropertiesImpl
     public void setSecretKey(String aSecretKey)
     {
         secretKey = aSecretKey;
-    }    
+    }
+
+    @Override
+    public String getMetaApiUrl()
+    {
+        return metaApiUrl;
+    }
+
+    public void setMetaApiUrl(String aMetaApiUrl)
+    {
+        metaApiUrl = aMetaApiUrl;
+    }
+
+    @Override
+    public String getApiKey()
+    {
+        return apiKey;
+    }
+
+    public void setApiKey(String aApiKey)
+    {
+        apiKey = aApiKey;
+    }
+
+    @Override
+    public int getExchangeId()
+    {
+        return exchangeId;
+    }
+
+    public void setExchangeId(int aExchangeId)
+    {
+        exchangeId = aExchangeId;
+    }
 }

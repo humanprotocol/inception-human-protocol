@@ -16,10 +16,12 @@
  */
 package io.github.reckart.inception.humanprotocol.adapter;
 
+import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.fromJsonString;
 import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.toJsonString;
 import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.toPrettyJsonString;
 import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_USERNAME;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_HUMAN_SIGNATURE;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.INVITE_LINK_ENDPOINT;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolController.API_BASE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolController.SUBMIT_JOB;
 import static io.github.reckart.inception.humanprotocol.JobManifestUtils.loadManifest;
@@ -65,7 +67,6 @@ import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfig
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.util.FileSystemUtils;
 import org.springframework.web.context.WebApplicationContext;
 
 import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
@@ -103,18 +104,23 @@ import de.tudarmstadt.ukp.clarin.webanno.support.ApplicationContextProvider;
 import de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging;
 import de.tudarmstadt.ukp.clarin.webanno.support.logging.LoggingFilter;
 import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
+import de.tudarmstadt.ukp.inception.sharing.InviteService;
+import de.tudarmstadt.ukp.inception.sharing.config.InviteServicePropertiesImpl;
 import io.github.reckart.inception.humanprotocol.HumanProtocolServiceImpl;
+import io.github.reckart.inception.humanprotocol.config.HumanProtocolPropertiesImpl;
+import io.github.reckart.inception.humanprotocol.messages.InviteLinkNotification;
 import io.github.reckart.inception.humanprotocol.messages.JobRequest;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
 import io.github.reckart.inception.humanprotocol.security.HumanSignatureValidationFilter;
 import mockwebserver3.MockResponse;
 import mockwebserver3.MockWebServer;
+import mockwebserver3.RecordedRequest;
 
 @ExtendWith(SpringExtension.class)
 @EnableAutoConfiguration(exclude = LiquibaseAutoConfiguration.class)
 @SpringBootTest(webEnvironment = MOCK, properties = { //
         "workload.dynamic.enabled=true", //
-        "sharing.invites.enabled=true"})
+        "sharing.invites.enabled=true" })
 @EnableWebSecurity
 @EntityScan({ "de.tudarmstadt.ukp.clarin.webanno.model", "de.tudarmstadt.ukp.inception",
         "de.tudarmstadt.ukp.clarin.webanno.security.model" })
@@ -122,7 +128,7 @@ import mockwebserver3.MockWebServer;
 public class HumanProtocolControllerImplTest
 {
     static @TempDir File repositoryDir;
-    
+
     private static final String SHARED_SECRED = "deadbeef";
 
     private @Autowired RepositoryProperties repositoryProperties;
@@ -130,6 +136,9 @@ public class HumanProtocolControllerImplTest
     private @Autowired UserDao userRepository;
     private @Autowired ProjectService projectService;
     private @Autowired HumanProtocolServiceImpl hmtService;
+    private @Autowired HumanProtocolPropertiesImpl hmtProperties;
+    private @Autowired InviteService inviteService;
+    private @Autowired InviteServicePropertiesImpl inviteProperties;
 
     private MockMvc mvc;
     private MockWebServer server;
@@ -145,11 +154,14 @@ public class HumanProtocolControllerImplTest
     {
         repositoryProperties.setPath(repositoryDir);
         MDC.put(Logging.KEY_REPOSITORY_PATH, repositoryProperties.getPath().toString());
+        MDC.put(KEY_USERNAME, "USERNAME");
 
         server = new MockWebServer();
         server.start();
 
-        MDC.put(KEY_USERNAME, "USERNAME");
+        inviteProperties.setInviteBaseUrl(server.url("/inception").toString());
+        hmtProperties.setMetaApiUrl(server.url("/meta-api").toString());
+        hmtProperties.setExchangeId(9123);
 
         // @formatter:off
         mvc = MockMvcBuilders
@@ -165,8 +177,6 @@ public class HumanProtocolControllerImplTest
         if (!initialized) {
             userRepository.create(new User("admin", Role.ROLE_ADMIN));
             initialized = true;
-
-            FileSystemUtils.deleteRecursively(new File("target/HumanProtocolControllerImplTest"));
         }
     }
 
@@ -180,8 +190,13 @@ public class HumanProtocolControllerImplTest
     public void t001_thatManifestCanCreateProject() throws Exception
     {
         File manifestFile = new File("src/test/resources/manifest/example-remote-data.json");
+
+        // First expected request fetches the data
         JobManifest manifest = loadManifest(manifestFile);
         server.enqueue(new MockResponse().setResponseCode(200).setBody(contentOf(manifestFile)));
+
+        // Second expected request posts the invite link information
+        server.enqueue(new MockResponse().setResponseCode(200));
 
         JobRequest jobRequest = new JobRequest();
         jobRequest.setNetworkId(12345);
@@ -203,22 +218,38 @@ public class HumanProtocolControllerImplTest
             .andExpect(status().isCreated());
         // @formatter:on
 
-        assertThat(projectService.existsProject(manifest.getJobId()))
+        assertThat(projectService.existsProject(manifest.getJobId())) //
                 .as("Project has been created from the job manifest using the job-ID as name")
                 .isTrue();
 
         Project project = projectService.getProject(manifest.getJobId());
 
-        assertThat(project)
+        assertThat(project) //
                 .as("Project description has been set from manifest")
                 .extracting(Project::getDescription).isNotNull();
-        
+
         Optional<JobManifest> storedManifest = hmtService.readJobManifest(project);
         assertThat(storedManifest).isPresent();
         assertThat(contentOf(hmtService.getManifestFile(project).toFile()))
                 .isEqualTo(contentOf(manifestFile));
         assertThatJson(toPrettyJsonString(hmtService.readJobManifest(project).get()))
                 .isEqualTo(toPrettyJsonString(manifest));
+        
+        assertThat(server.takeRequest().getPath()).as("Data loaded").isEqualTo("/data");
+
+        RecordedRequest linkNotificationRequest = server.takeRequest();
+        assertThat(linkNotificationRequest.getPath()) //
+                .as("Invite link notification recieved") //
+                .endsWith(INVITE_LINK_ENDPOINT);
+        InviteLinkNotification notification = fromJsonString(InviteLinkNotification.class,
+                linkNotificationRequest.getBody().readUtf8());
+        assertThat(notification.getInviteLink()).startsWith(inviteProperties.getInviteBaseUrl());
+        assertThat(notification.getInviteLink()).contains("/p/1/join-project");
+        assertThat(notification.getInviteLink())
+                .endsWith(inviteService.readProjectInvite(project).getInviteId());
+        assertThat(notification.getNetworkId()).isEqualTo(jobRequest.getNetworkId());
+        assertThat(notification.getJobAddress()).isEqualTo(jobRequest.getJobAddress());
+        assertThat(notification.getExchangeId()).isEqualTo(hmtProperties.getExchangeId());
     }
 
     @Configuration

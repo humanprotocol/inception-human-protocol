@@ -31,12 +31,14 @@ public interface HumanProtocolService
     /**
      * Import a job manifest directly into the project from a remote URL. This ensures that any
      * information that is not represented in the {@link JobManifest} class is still present in the
-     * persisted manifest and can (if need be) accessed at a later time, e.g. when the 
+     * persisted manifest and can (if need be) accessed at a later time, e.g. when the
      * {@link JobManifest} has been extended to support the new information.
      */
     void importJobManifest(Project aProject, URL aManifestUrl) throws IOException;
 
     Optional<JobRequest> readJobRequest(Project aProject) throws IOException;
-    
+
     void writeJobRequest(Project aProject, JobRequest aJobRequest) throws IOException;
+
+    void publishInviteLink(Project aProject) throws IOException;
 }

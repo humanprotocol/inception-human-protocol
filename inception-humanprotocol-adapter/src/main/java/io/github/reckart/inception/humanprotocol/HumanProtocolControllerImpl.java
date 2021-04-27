@@ -37,10 +37,17 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
+import io.github.reckart.inception.humanprotocol.config.HumanProtocolAutoConfiguration;
 import io.github.reckart.inception.humanprotocol.messages.JobRequest;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
 import io.swagger.v3.oas.annotations.Operation;
 
+/**
+ * <p>
+ * This class is exposed as a Spring Component via
+ * {@link HumanProtocolAutoConfiguration#humanProtocolController}.
+ * </p>
+ */
 @ResponseBody
 @RequestMapping(HumanProtocolController.API_BASE)
 public class HumanProtocolControllerImpl
@@ -100,6 +107,8 @@ public class HumanProtocolControllerImpl
             factory.initializeBean(initializer, "transientInitializer");
             
             projectService.initializeProject(project, asList(initializer));
+            
+            hmtService.publishInviteLink(project);
         }
         catch (Exception e) {
             try {
