@@ -21,6 +21,7 @@ import java.net.URL;
 import java.util.Optional;
 
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
+import io.github.reckart.inception.humanprotocol.messages.JobRequest;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
 
 public interface HumanProtocolService
@@ -34,4 +35,8 @@ public interface HumanProtocolService
      * {@link JobManifest} has been extended to support the new information.
      */
     void importJobManifest(Project aProject, URL aManifestUrl) throws IOException;
+
+    Optional<JobRequest> readJobRequest(Project aProject) throws IOException;
+    
+    void writeJobRequest(Project aProject, JobRequest aJobRequest) throws IOException;
 }
