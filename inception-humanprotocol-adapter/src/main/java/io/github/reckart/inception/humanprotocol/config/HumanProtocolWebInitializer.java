@@ -28,10 +28,15 @@ import javax.servlet.ServletException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
-import org.springframework.context.annotation.Configuration;
+
 import io.github.reckart.inception.humanprotocol.security.HumanSignatureValidationFilter;
 
-@Configuration
+/**
+ * <p>
+ * This class is exposed as a Spring Component via
+ * {@link HumanProtocolAutoConfiguration#humanProtocolWebInitializer}.
+ * </p>
+ */
 public class HumanProtocolWebInitializer
     implements ServletContextInitializer
 {

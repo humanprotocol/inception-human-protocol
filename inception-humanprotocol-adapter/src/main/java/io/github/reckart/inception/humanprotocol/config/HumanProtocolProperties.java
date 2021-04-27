@@ -19,4 +19,10 @@ package io.github.reckart.inception.humanprotocol.config;
 public interface HumanProtocolProperties
 {
     String getSecretKey();
+
+    int getExchangeId();
+
+    String getApiKey();
+
+    String getMetaApiUrl();
 }

@@ -19,4 +19,8 @@ package io.github.reckart.inception.humanprotocol;
 public interface HumanProtocolConstants
 {
    String HEADER_X_HUMAN_SIGNATURE = "X-human-signature";
+   
+   String INVITE_LINK_ENDPOINT = "/exchange/job/invite-link";
+   
+   String JOB_RESULTS_ENDPOINT = "/exchange/job/results";
 }

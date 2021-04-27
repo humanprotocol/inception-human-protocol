@@ -16,6 +16,9 @@
  */
 package io.github.reckart.inception.humanprotocol;
 
+import static de.tudarmstadt.ukp.clarin.webanno.model.ProjectState.ANNOTATION_FINISHED;
+import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.toPrettyJsonString;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.INVITE_LINK_ENDPOINT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.createDirectories;
 import static java.nio.file.Files.exists;
@@ -26,15 +29,30 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Writer;
+import java.net.URI;
 import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.event.EventListener;
+
 import de.tudarmstadt.ukp.clarin.webanno.api.RepositoryProperties;
+import de.tudarmstadt.ukp.clarin.webanno.api.event.ProjectStateChangedEvent;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
 import de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil;
+import de.tudarmstadt.ukp.inception.sharing.InviteService;
+import de.tudarmstadt.ukp.inception.sharing.model.ProjectInvite;
 import io.github.reckart.inception.humanprotocol.config.HumanProtocolAutoConfiguration;
+import io.github.reckart.inception.humanprotocol.config.HumanProtocolProperties;
+import io.github.reckart.inception.humanprotocol.messages.InviteLinkNotification;
 import io.github.reckart.inception.humanprotocol.messages.JobRequest;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
 
@@ -47,11 +65,18 @@ import io.github.reckart.inception.humanprotocol.model.JobManifest;
 public class HumanProtocolServiceImpl
     implements HumanProtocolService
 {
-    private final RepositoryProperties repositoryProperties;
+    private final Logger log = LoggerFactory.getLogger(getClass());
 
-    public HumanProtocolServiceImpl(RepositoryProperties aRepositoryProperties)
+    private final RepositoryProperties repositoryProperties;
+    private final HumanProtocolProperties hmtProperties;
+    private final InviteService inviteService;
+
+    public HumanProtocolServiceImpl(RepositoryProperties aRepositoryProperties,
+            InviteService aInviteService, HumanProtocolProperties aHmtProperties)
     {
         repositoryProperties = aRepositoryProperties;
+        inviteService = aInviteService;
+        hmtProperties = aHmtProperties;
     }
 
     @Override
@@ -119,5 +144,47 @@ public class HumanProtocolServiceImpl
     public Path getJobRequestFile(Project aProject)
     {
         return repositoryProperties.getPath().toPath().resolve("hmt").resolve("job-request.json");
+    }
+    
+    @Override
+    public void publishInviteLink(Project aProject) throws IOException
+    {
+        Optional<JobRequest> optJobRequest = readJobRequest(aProject);
+        if (optJobRequest.isEmpty()) {
+            log.trace("{} is not a HMT project - not sending invite link", aProject);
+            return;
+        }
+
+        if (hmtProperties.getMetaApiUrl() == null) {
+            log.warn("No meta API URL has been provided - not sending invite link");
+            return;
+        }
+
+        JobRequest jobRequest = optJobRequest.get();
+        ProjectInvite invite = inviteService.readProjectInvite(aProject);
+        String inviteLinkUrl = inviteService.getFullInviteLinkUrl(invite);
+        
+        InviteLinkNotification msg = new InviteLinkNotification();
+        msg.setInviteLink(inviteLinkUrl);
+        msg.setExchangeId(hmtProperties.getExchangeId());
+        msg.setJobAddress(jobRequest.getJobAddress());
+        msg.setNetworkId(jobRequest.getNetworkId());
+        
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder() //
+                .uri(URI.create(hmtProperties.getMetaApiUrl() + INVITE_LINK_ENDPOINT)) //
+                .POST(BodyPublishers.ofString(toPrettyJsonString(msg), UTF_8))
+                .build();
+        
+        try {
+            HttpResponse<InputStream> response = client.send(request, BodyHandlers.ofInputStream());
+            if (response.statusCode() != 200) {
+                throw new IOException(
+                        "Invite link publication failed with status " + response.statusCode());
+            }
+        }
+        catch (InterruptedException e ) {
+            throw new IOException(e);
+        }
     }
 }

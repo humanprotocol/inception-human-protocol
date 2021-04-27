@@ -26,6 +26,7 @@ import org.springframework.context.annotation.Configuration;
 
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.RepositoryProperties;
+import de.tudarmstadt.ukp.inception.sharing.InviteService;
 import io.github.reckart.inception.humanprotocol.HumanProtocolController;
 import io.github.reckart.inception.humanprotocol.HumanProtocolControllerImpl;
 import io.github.reckart.inception.humanprotocol.HumanProtocolService;
@@ -63,8 +64,9 @@ public class HumanProtocolAutoConfiguration
     }
 
     @Bean
-    public HumanProtocolService humanProtocolService(RepositoryProperties aRepositoryProperties)
+    public HumanProtocolService humanProtocolService(RepositoryProperties aRepositoryProperties,
+            InviteService aInviteService, HumanProtocolProperties aHmtProperties)
     {
-        return new HumanProtocolServiceImpl(aRepositoryProperties);
+        return new HumanProtocolServiceImpl(aRepositoryProperties, aInviteService, aHmtProperties);
     }
 }
