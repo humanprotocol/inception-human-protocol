@@ -153,7 +153,8 @@ public class HumanProtocolProjectInitializer
                 "## Welcome!",
                 "",
                 "To earn credit for your annotations, please enter your Ethereum "
-                + "walled address as user ID below.",
+                + "wallet address as user ID below.",
+                "",
                 "Please also provide your eMail address."));
         invite.setUserIdPlaceholder("Ethereum walled address");
         invite.setAskForEMail(MANDATORY);
