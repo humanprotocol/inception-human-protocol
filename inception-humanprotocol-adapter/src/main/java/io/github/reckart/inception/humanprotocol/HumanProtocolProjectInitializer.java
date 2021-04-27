@@ -157,6 +157,7 @@ public class HumanProtocolProjectInitializer
                 "Please also provide your eMail address."));
         invite.setUserIdPlaceholder("Ethereum walled address");
         invite.setAskForEMail(MANDATORY);
+        invite.setDisableOnAnnotationComplete(true);
         inviteService.writeProjectInvite(invite);
     }
 
