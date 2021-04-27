@@ -23,6 +23,7 @@ import static de.tudarmstadt.ukp.clarin.webanno.model.OverlapMode.ANY_OVERLAP;
 import static de.tudarmstadt.ukp.clarin.webanno.model.OverlapMode.NO_OVERLAP;
 import static de.tudarmstadt.ukp.clarin.webanno.model.PermissionLevel.CURATOR;
 import static de.tudarmstadt.ukp.clarin.webanno.model.PermissionLevel.MANAGER;
+import static de.tudarmstadt.ukp.inception.sharing.model.Mandatoriness.MANDATORY;
 import static java.io.File.createTempFile;
 import static java.lang.Boolean.TRUE;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -152,8 +153,10 @@ public class HumanProtocolProjectInitializer
                 "## Welcome!",
                 "",
                 "To earn credit for your annotations, please enter your Ethereum "
-                + "walled address as user ID below."));
+                + "walled address as user ID below.",
+                "Please also provide your eMail address."));
         invite.setUserIdPlaceholder("Ethereum walled address");
+        invite.setAskForEMail(MANDATORY);
         inviteService.writeProjectInvite(invite);
     }
 
