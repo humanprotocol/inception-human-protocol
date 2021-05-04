@@ -20,6 +20,8 @@
 
     <spring.boot.version>2.4.2</spring.boot.version>
     <inception.version>0.20.0-SNAPSHOT</inception.version>
+    <awssdk.version>2.16.54</awssdk.version>
+    <aws-java-sdk.version>1.11.1010</aws-java-sdk.version>
   </properties>
 
   <modules>
@@ -46,18 +48,18 @@
       <dependency>
         <groupId>software.amazon.awssdk</groupId>
         <artifactId>s3</artifactId>
-        <version>2.7.19</version>
+        <version>${awssdk.version}</version>
       </dependency>
       <dependency>
         <groupId>software.amazon.awssdk</groupId>
         <artifactId>apache-client</artifactId>
-        <version>2.7.19</version>
+        <version>${awssdk.version}</version>
       </dependency>
 
       <dependency>
         <groupId>com.amazonaws</groupId>
         <artifactId>aws-java-sdk-s3</artifactId>
-        <version>1.11.488</version>
+        <version>${aws-java-sdk.version}</version>
       </dependency>
 
       <dependency>
