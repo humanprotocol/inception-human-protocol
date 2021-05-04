@@ -18,7 +18,9 @@ package io.github.reckart.inception.humanprotocol;
 
 import static de.tudarmstadt.ukp.clarin.webanno.model.ProjectState.ANNOTATION_FINISHED;
 import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.toPrettyJsonString;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_HUMAN_SIGNATURE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.INVITE_LINK_ENDPOINT;
+import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateBase64Signature;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.createDirectories;
 import static java.nio.file.Files.exists;
@@ -38,6 +40,8 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Optional;
 
 import org.apache.commons.io.FileUtils;
@@ -223,10 +227,20 @@ public class HumanProtocolServiceImpl
         msg.setJobAddress(jobRequest.getJobAddress());
         msg.setNetworkId(jobRequest.getNetworkId());
 
+        String serializedMessage = toPrettyJsonString(msg);
+        String signature;
+        try {
+            signature = generateBase64Signature(hmtProperties.getApiKey(), serializedMessage);
+        }
+        catch (NoSuchAlgorithmException | InvalidKeyException ex) {
+            throw new IOException("Unable to generate message signature", ex);
+        }
+        
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder() //
                 .uri(URI.create(hmtProperties.getMetaApiUrl() + INVITE_LINK_ENDPOINT)) //
-                .POST(BodyPublishers.ofString(toPrettyJsonString(msg), UTF_8)).build();
+                .header(HEADER_X_HUMAN_SIGNATURE, signature)
+                .POST(BodyPublishers.ofString(serializedMessage, UTF_8)).build();
 
         try {
             HttpResponse<InputStream> response = client.send(request, BodyHandlers.ofInputStream());

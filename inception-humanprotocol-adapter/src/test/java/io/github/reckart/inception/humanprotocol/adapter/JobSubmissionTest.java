@@ -38,7 +38,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -117,20 +116,24 @@ import mockwebserver3.RecordedRequest;
 @ExtendWith(SpringExtension.class)
 @EnableAutoConfiguration(exclude = LiquibaseAutoConfiguration.class)
 @SpringBootTest(webEnvironment = MOCK, properties = { //
+        // These properies are required for auto-config, so we need to set them here already
         "human-protocol.s3Region=us-west-2", //
         "human-protocol.s3Username=dummy", //
         "human-protocol.s3Password=dummy", //
         "workload.dynamic.enabled=true", //
         "sharing.invites.enabled=true" })
 @EnableWebSecurity
-@EntityScan({ "de.tudarmstadt.ukp.clarin.webanno.model", "de.tudarmstadt.ukp.inception",
+@EntityScan({ //
+        "de.tudarmstadt.ukp.inception", //
+        "de.tudarmstadt.ukp.clarin.webanno.model", //
         "de.tudarmstadt.ukp.clarin.webanno.security.model" })
 @TestMethodOrder(MethodOrderer.MethodName.class)
 public class JobSubmissionTest
 {
     static @TempDir File repositoryDir;
 
-    private static final String SHARED_SECRED = "deadbeef";
+    private static final String SHARED_SECRET = "deadbeef";
+    private static final String API_KEY = "beefdead";
 
     private @Autowired RepositoryProperties repositoryProperties;
     private @Autowired WebApplicationContext context;
@@ -163,6 +166,7 @@ public class JobSubmissionTest
         inviteProperties.setInviteBaseUrl(server.url("/inception").toString());
         hmtProperties.setMetaApiUrl(server.url("/meta-api").toString());
         hmtProperties.setExchangeId(9123);
+        hmtProperties.setApiKey(API_KEY);
 
         // @formatter:off
         mvc = MockMvcBuilders
@@ -170,7 +174,7 @@ public class JobSubmissionTest
                 .alwaysDo(print())
                 .apply(SecurityMockMvcConfigurers.springSecurity())
                 .addFilters(new LoggingFilter(repositoryProperties.getPath().toString()))
-                .addFilters(new HumanSignatureValidationFilter(SHARED_SECRED))
+                .addFilters(new HumanSignatureValidationFilter(SHARED_SECRET))
                 .addFilters(new OpenCasStorageSessionForRequestFilter())
                 .build();
         // @formatter:on
@@ -199,12 +203,13 @@ public class JobSubmissionTest
         // Second expected request posts the invite link information
         server.enqueue(new MockResponse().setResponseCode(200));
 
-        assertThat(projectService.listProjects())
+        assertThat(projectService.listProjects()) //
                 .as("Starting with emtpy database (no projects)")
                 .hasSize(0);
 
         postJob(createJobRequest());
 
+        // Validate project has been properly created
         assertThat(projectService.existsProject(manifest.getJobId())) //
                 .as("Project has been created from the job manifest using the job-ID as name")
                 .isTrue();
@@ -221,14 +226,19 @@ public class JobSubmissionTest
         assertThatJson(toPrettyJsonString(hmtService.readJobManifest(project).get()))
                 .isEqualTo(toPrettyJsonString(manifest));
 
+        // Validate project has imported data to be labeled
         assertThat(server.takeRequest().getPath()).as("Data loaded").isEqualTo("/data");
 
+        // Validate invite link notification
         RecordedRequest linkNotificationRequest = server.takeRequest();
         assertThat(linkNotificationRequest.getPath()) //
                 .as("Invite link notification recieved") //
                 .endsWith(INVITE_LINK_ENDPOINT);
+        String serializedNotification = linkNotificationRequest.getBody().readUtf8();
+        assertThat(linkNotificationRequest.getHeader(HEADER_X_HUMAN_SIGNATURE))
+                .isEqualTo(generateBase64Signature(API_KEY, serializedNotification));
         InviteLinkNotification notification = fromJsonString(InviteLinkNotification.class,
-                linkNotificationRequest.getBody().readUtf8());
+                serializedNotification);
         assertThat(notification.getInviteLink()).startsWith(inviteProperties.getInviteBaseUrl());
         assertThat(notification.getInviteLink()).contains("/p/1/join-project");
         assertThat(notification.getInviteLink())
@@ -250,7 +260,7 @@ public class JobSubmissionTest
     private void postJob(JobRequest jobRequest) throws Exception
     {
         String body = toJsonString(jobRequest);
-        String signature = generateBase64Signature(SHARED_SECRED, body);
+        String signature = generateBase64Signature(SHARED_SECRET, body);
 
         // @formatter:off
         mvc.perform(post(API_BASE + "/" + SUBMIT_JOB)
