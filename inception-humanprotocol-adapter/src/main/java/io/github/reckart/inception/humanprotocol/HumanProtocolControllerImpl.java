@@ -24,6 +24,8 @@ import static org.springframework.http.MediaType.ALL_VALUE;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 import java.io.IOException;
+import java.io.InputStream;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
@@ -94,7 +96,9 @@ public class HumanProtocolControllerImpl
         try {
             hmtService.writeJobRequest(project, aJobRequest);
             
-            hmtService.importJobManifest(project, aJobRequest.getJobManifest().toURL());
+            try (InputStream is = aJobRequest.getJobManifest().toURL().openStream()) {
+                hmtService.importJobManifest(project, is);
+            }
             
             JobManifest manifest = hmtService.readJobManifest(project).get();
             project.setDescription(manifest.getRequesterQuestion().get("en"));

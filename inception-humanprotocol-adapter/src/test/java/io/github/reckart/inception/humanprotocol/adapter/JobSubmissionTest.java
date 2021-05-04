@@ -38,6 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -83,12 +84,9 @@ import de.tudarmstadt.ukp.clarin.webanno.api.annotation.layer.LayerSupportRegist
 import de.tudarmstadt.ukp.clarin.webanno.api.annotation.layer.RelationLayerSupport;
 import de.tudarmstadt.ukp.clarin.webanno.api.annotation.layer.SpanLayerSupport;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.AnnotationSchemaServiceImpl;
-import de.tudarmstadt.ukp.clarin.webanno.api.dao.BackupProperties;
-import de.tudarmstadt.ukp.clarin.webanno.api.dao.CasStorageServiceImpl;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.DocumentImportExportServiceImpl;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.DocumentServiceImpl;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.casstorage.OpenCasStorageSessionForRequestFilter;
-import de.tudarmstadt.ukp.clarin.webanno.api.dao.casstorage.config.CasStoragePropertiesImpl;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.docimexport.config.DocumentImportExportServicePropertiesImpl;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.export.ProjectExportServiceImpl;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportService;
@@ -119,13 +117,16 @@ import mockwebserver3.RecordedRequest;
 @ExtendWith(SpringExtension.class)
 @EnableAutoConfiguration(exclude = LiquibaseAutoConfiguration.class)
 @SpringBootTest(webEnvironment = MOCK, properties = { //
+        "human-protocol.s3Region=us-west-2", //
+        "human-protocol.s3Username=dummy", //
+        "human-protocol.s3Password=dummy", //
         "workload.dynamic.enabled=true", //
         "sharing.invites.enabled=true" })
 @EnableWebSecurity
 @EntityScan({ "de.tudarmstadt.ukp.clarin.webanno.model", "de.tudarmstadt.ukp.inception",
         "de.tudarmstadt.ukp.clarin.webanno.security.model" })
 @TestMethodOrder(MethodOrderer.MethodName.class)
-public class HumanProtocolControllerImplTest
+public class JobSubmissionTest
 {
     static @TempDir File repositoryDir;
 
@@ -187,7 +188,7 @@ public class HumanProtocolControllerImplTest
     }
 
     @Test
-    public void t001_thatManifestCanCreateProject() throws Exception
+    public void thatProjectCreationFromJobAndInviteLinkNotification() throws Exception
     {
         File manifestFile = new File("src/test/resources/manifest/example-remote-data.json");
 
@@ -198,32 +199,17 @@ public class HumanProtocolControllerImplTest
         // Second expected request posts the invite link information
         server.enqueue(new MockResponse().setResponseCode(200));
 
-        JobRequest jobRequest = new JobRequest();
-        jobRequest.setNetworkId(12345);
-        jobRequest.setJobAddress("e376b295-637a-4f6f-ba5c-3662a5d57f07");
-        jobRequest.setJobManifest(server.url("/data").uri());
+        assertThat(projectService.listProjects())
+                .as("Starting with emtpy database (no projects)")
+                .hasSize(0);
 
-        String body = toJsonString(jobRequest);
-        String signature = generateBase64Signature(SHARED_SECRED, body);
-
-        assertThat(projectService.listProjects()).hasSize(0);
-
-        // @formatter:off
-        mvc.perform(post(API_BASE + "/" + SUBMIT_JOB)
-                .with(csrf().asHeader())
-                .with(user("admin").roles("ADMIN"))
-                .header(HEADER_X_HUMAN_SIGNATURE, signature)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(body))
-            .andExpect(status().isCreated());
-        // @formatter:on
+        postJob(createJobRequest());
 
         assertThat(projectService.existsProject(manifest.getJobId())) //
                 .as("Project has been created from the job manifest using the job-ID as name")
                 .isTrue();
 
         Project project = projectService.getProject(manifest.getJobId());
-
         assertThat(project) //
                 .as("Project description has been set from manifest")
                 .extracting(Project::getDescription).isNotNull();
@@ -234,7 +220,7 @@ public class HumanProtocolControllerImplTest
                 .isEqualTo(contentOf(manifestFile));
         assertThatJson(toPrettyJsonString(hmtService.readJobManifest(project).get()))
                 .isEqualTo(toPrettyJsonString(manifest));
-        
+
         assertThat(server.takeRequest().getPath()).as("Data loaded").isEqualTo("/data");
 
         RecordedRequest linkNotificationRequest = server.takeRequest();
@@ -247,9 +233,34 @@ public class HumanProtocolControllerImplTest
         assertThat(notification.getInviteLink()).contains("/p/1/join-project");
         assertThat(notification.getInviteLink())
                 .endsWith(inviteService.readProjectInvite(project).getInviteId());
-        assertThat(notification.getNetworkId()).isEqualTo(jobRequest.getNetworkId());
-        assertThat(notification.getJobAddress()).isEqualTo(jobRequest.getJobAddress());
+        assertThat(notification.getNetworkId()).isEqualTo(createJobRequest().getNetworkId());
+        assertThat(notification.getJobAddress()).isEqualTo(createJobRequest().getJobAddress());
         assertThat(notification.getExchangeId()).isEqualTo(hmtProperties.getExchangeId());
+    }
+
+    private JobRequest createJobRequest()
+    {
+        JobRequest jobRequest = new JobRequest();
+        jobRequest.setNetworkId(12345);
+        jobRequest.setJobAddress("e376b295-637a-4f6f-ba5c-3662a5d57f07");
+        jobRequest.setJobManifest(server.url("/data").uri());
+        return jobRequest;
+    }
+
+    private void postJob(JobRequest jobRequest) throws Exception
+    {
+        String body = toJsonString(jobRequest);
+        String signature = generateBase64Signature(SHARED_SECRED, body);
+
+        // @formatter:off
+        mvc.perform(post(API_BASE + "/" + SUBMIT_JOB)
+                .with(csrf().asHeader())
+                .with(user("admin").roles("ADMIN"))
+                .header(HEADER_X_HUMAN_SIGNATURE, signature)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isCreated());
+        // @formatter:on
     }
 
     @Configuration
@@ -304,13 +315,6 @@ public class HumanProtocolControllerImplTest
         }
 
         @Bean
-        public CasStorageService casStorageService(RepositoryProperties aRepositoryProperties)
-        {
-            return new CasStorageServiceImpl(null, null, aRepositoryProperties,
-                    new CasStoragePropertiesImpl(), backupProperties());
-        }
-
-        @Bean
         public DocumentImportExportService importExportService(
                 RepositoryProperties aRepositoryProperties, CasStorageService aCasStorageService,
                 AnnotationSchemaService aAnnotationSchemaService)
@@ -330,12 +334,6 @@ public class HumanProtocolControllerImplTest
         public RepositoryProperties repositoryProperties()
         {
             return new RepositoryProperties();
-        }
-
-        @Bean
-        public BackupProperties backupProperties()
-        {
-            return new BackupProperties();
         }
 
         @Bean

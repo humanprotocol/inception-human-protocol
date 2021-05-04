@@ -25,4 +25,10 @@ public interface HumanProtocolProperties
     String getApiKey();
 
     String getMetaApiUrl();
+
+    String getS3Username();
+
+    String getS3Password();
+
+    String getS3Region();
 }

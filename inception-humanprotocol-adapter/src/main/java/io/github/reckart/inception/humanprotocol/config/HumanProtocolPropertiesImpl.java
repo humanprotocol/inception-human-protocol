@@ -26,6 +26,9 @@ public class HumanProtocolPropertiesImpl
     private String metaApiUrl;
     private String apiKey;
     private int exchangeId;
+    private String s3Username;
+    private String s3Password;
+    private String s3Region;
 
     @Override
     public String getSecretKey()
@@ -69,5 +72,38 @@ public class HumanProtocolPropertiesImpl
     public void setExchangeId(int aExchangeId)
     {
         exchangeId = aExchangeId;
+    }
+
+    @Override
+    public String getS3Username()
+    {
+        return s3Username;
+    }
+
+    public void setS3Username(String aS3Username)
+    {
+        s3Username = aS3Username;
+    }
+
+    @Override
+    public String getS3Password()
+    {
+        return s3Password;
+    }
+
+    public void setS3Password(String aS3Password)
+    {
+        s3Password = aS3Password;
+    }
+
+    @Override
+    public String getS3Region()
+    {
+        return s3Region;
+    }
+
+    public void setS3Region(String aS3Region)
+    {
+        s3Region = aS3Region;
     }
 }

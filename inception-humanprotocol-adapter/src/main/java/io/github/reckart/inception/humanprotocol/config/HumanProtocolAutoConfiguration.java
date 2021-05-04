@@ -18,6 +18,7 @@ package io.github.reckart.inception.humanprotocol.config;
 
 import org.springdoc.core.GroupedOpenApi;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
@@ -26,12 +27,18 @@ import org.springframework.context.annotation.Configuration;
 
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.RepositoryProperties;
+import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportService;
 import de.tudarmstadt.ukp.inception.sharing.InviteService;
 import io.github.reckart.inception.humanprotocol.HumanProtocolController;
 import io.github.reckart.inception.humanprotocol.HumanProtocolControllerImpl;
 import io.github.reckart.inception.humanprotocol.HumanProtocolService;
 import io.github.reckart.inception.humanprotocol.HumanProtocolServiceImpl;
 import io.swagger.v3.oas.models.info.Info;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
 
 @Configuration
 @EnableConfigurationProperties(HumanProtocolPropertiesImpl.class)
@@ -65,8 +72,22 @@ public class HumanProtocolAutoConfiguration
 
     @Bean
     public HumanProtocolService humanProtocolService(RepositoryProperties aRepositoryProperties,
-            InviteService aInviteService, HumanProtocolProperties aHmtProperties)
+            ProjectExportService aProjectExportService, InviteService aInviteService, HumanProtocolProperties aHmtProperties,
+            S3Client aS3Client)
     {
-        return new HumanProtocolServiceImpl(aRepositoryProperties, aInviteService, aHmtProperties);
+        return new HumanProtocolServiceImpl(aProjectExportService, aInviteService,
+                aS3Client, aRepositoryProperties, aHmtProperties);
+    }
+
+    @ConditionalOnMissingBean
+    @Bean
+    public S3Client humanProtocolS3Client(HumanProtocolProperties aHmtProperties)
+    {
+        return S3Client.builder() //
+                .region(Region.of(aHmtProperties.getS3Region()))
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials
+                        .create(aHmtProperties.getS3Username(), aHmtProperties.getS3Password())))
+                .httpClient(ApacheHttpClient.builder().build())
+                .build();
     }
 }

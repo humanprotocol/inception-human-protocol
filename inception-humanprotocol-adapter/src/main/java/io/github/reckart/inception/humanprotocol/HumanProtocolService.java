@@ -17,7 +17,7 @@
 package io.github.reckart.inception.humanprotocol;
 
 import java.io.IOException;
-import java.net.URL;
+import java.io.InputStream;
 import java.util.Optional;
 
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
@@ -26,6 +26,8 @@ import io.github.reckart.inception.humanprotocol.model.JobManifest;
 
 public interface HumanProtocolService
 {
+    String EXPORT_KEY = "results.zip";
+    
     Optional<JobManifest> readJobManifest(Project aProject) throws IOException;
 
     /**
@@ -34,7 +36,13 @@ public interface HumanProtocolService
      * persisted manifest and can (if need be) accessed at a later time, e.g. when the
      * {@link JobManifest} has been extended to support the new information.
      */
-    void importJobManifest(Project aProject, URL aManifestUrl) throws IOException;
+    void importJobManifest(Project aProject, InputStream aManifestSource) throws IOException;
+
+    /**
+     * Stores the given job manifest in the project. Using this method should usually be avoided
+     * and instead {@link #importJobManifest} should be used. 
+     */
+    void writeJobManifest(Project aProject, JobManifest aManifest) throws IOException;
 
     Optional<JobRequest> readJobRequest(Project aProject) throws IOException;
 

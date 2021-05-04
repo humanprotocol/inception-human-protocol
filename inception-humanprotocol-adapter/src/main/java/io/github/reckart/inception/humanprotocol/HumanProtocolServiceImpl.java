@@ -25,12 +25,12 @@ import static java.nio.file.Files.exists;
 import static java.nio.file.Files.newOutputStream;
 import static org.apache.commons.io.IOUtils.copyLarge;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Writer;
 import java.net.URI;
-import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
@@ -40,14 +40,20 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 
 import de.tudarmstadt.ukp.clarin.webanno.api.RepositoryProperties;
 import de.tudarmstadt.ukp.clarin.webanno.api.event.ProjectStateChangedEvent;
+import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportException;
+import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportRequest;
+import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportService;
+import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportTaskMonitor;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
 import de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil;
+import de.tudarmstadt.ukp.clarin.webanno.xmi.XmiFormatSupport;
 import de.tudarmstadt.ukp.inception.sharing.InviteService;
 import de.tudarmstadt.ukp.inception.sharing.model.ProjectInvite;
 import io.github.reckart.inception.humanprotocol.config.HumanProtocolAutoConfiguration;
@@ -55,6 +61,9 @@ import io.github.reckart.inception.humanprotocol.config.HumanProtocolProperties;
 import io.github.reckart.inception.humanprotocol.messages.InviteLinkNotification;
 import io.github.reckart.inception.humanprotocol.messages.JobRequest;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 /**
  * <p>
@@ -70,13 +79,18 @@ public class HumanProtocolServiceImpl
     private final RepositoryProperties repositoryProperties;
     private final HumanProtocolProperties hmtProperties;
     private final InviteService inviteService;
+    private final S3Client s3Client;
+    private final ProjectExportService projectExportService;
 
-    public HumanProtocolServiceImpl(RepositoryProperties aRepositoryProperties,
-            InviteService aInviteService, HumanProtocolProperties aHmtProperties)
+    public HumanProtocolServiceImpl(ProjectExportService aProjectExportService,
+            InviteService aInviteService, S3Client aS3Client,
+            RepositoryProperties aRepositoryProperties, HumanProtocolProperties aHmtProperties)
     {
         repositoryProperties = aRepositoryProperties;
         inviteService = aInviteService;
         hmtProperties = aHmtProperties;
+        s3Client = aS3Client;
+        projectExportService = aProjectExportService;
     }
 
     @Override
@@ -121,7 +135,7 @@ public class HumanProtocolServiceImpl
     }
 
     @Override
-    public synchronized void importJobManifest(Project aProject, URL aManifestUrl)
+    public synchronized void importJobManifest(Project aProject, InputStream aManifestSource)
         throws IOException
     {
         Path manifestFile = getManifestFile(aProject);
@@ -130,9 +144,23 @@ public class HumanProtocolServiceImpl
             createDirectories(manifestFile.getParent());
         }
 
-        try (InputStream is = aManifestUrl.openStream();
-                OutputStream os = newOutputStream(manifestFile)) {
-            copyLarge(is, os);
+        try (OutputStream os = newOutputStream(manifestFile)) {
+            copyLarge(aManifestSource, os);
+        }
+    }
+
+    @Override
+    public synchronized void writeJobManifest(Project aProject, JobManifest aManifest)
+        throws IOException
+    {
+        Path jobManifestFile = getManifestFile(aProject);
+
+        if (!exists(jobManifestFile)) {
+            createDirectories(jobManifestFile.getParent());
+        }
+
+        try (Writer out = Files.newBufferedWriter(jobManifestFile, UTF_8)) {
+            out.write(JSONUtil.toPrettyJsonString(aManifest));
         }
     }
 
@@ -145,7 +173,32 @@ public class HumanProtocolServiceImpl
     {
         return repositoryProperties.getPath().toPath().resolve("hmt").resolve("job-request.json");
     }
-    
+
+    public void publishResults(Project aProject, JobRequest aJobRequest, JobManifest aJobManifest)
+        throws ProjectExportException, IOException
+    {
+        File exportedProjectFile = null;
+
+        try {
+            ProjectExportTaskMonitor monitor = new ProjectExportTaskMonitor();
+            ProjectExportRequest exportRequest = new ProjectExportRequest();
+            exportRequest.setProject(aProject);
+            exportRequest.setFormat(XmiFormatSupport.ID);
+            exportRequest.setFilenameTag("_project");
+            exportRequest.setIncludeInProgress(true);
+
+            exportedProjectFile = projectExportService.exportProject(exportRequest, monitor);
+
+            s3Client.putObject(PutObjectRequest.builder() //
+                    .bucket(aJobRequest.getJobAddress()) //
+                    .key(EXPORT_KEY)//
+                    .build(), RequestBody.fromFile(exportedProjectFile));
+        }
+        finally {
+            FileUtils.deleteQuietly(exportedProjectFile);
+        }
+    }
+
     @Override
     public void publishInviteLink(Project aProject) throws IOException
     {
@@ -163,19 +216,18 @@ public class HumanProtocolServiceImpl
         JobRequest jobRequest = optJobRequest.get();
         ProjectInvite invite = inviteService.readProjectInvite(aProject);
         String inviteLinkUrl = inviteService.getFullInviteLinkUrl(invite);
-        
+
         InviteLinkNotification msg = new InviteLinkNotification();
         msg.setInviteLink(inviteLinkUrl);
         msg.setExchangeId(hmtProperties.getExchangeId());
         msg.setJobAddress(jobRequest.getJobAddress());
         msg.setNetworkId(jobRequest.getNetworkId());
-        
+
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder() //
                 .uri(URI.create(hmtProperties.getMetaApiUrl() + INVITE_LINK_ENDPOINT)) //
-                .POST(BodyPublishers.ofString(toPrettyJsonString(msg), UTF_8))
-                .build();
-        
+                .POST(BodyPublishers.ofString(toPrettyJsonString(msg), UTF_8)).build();
+
         try {
             HttpResponse<InputStream> response = client.send(request, BodyHandlers.ofInputStream());
             if (response.statusCode() != 200) {
@@ -183,8 +235,37 @@ public class HumanProtocolServiceImpl
                         "Invite link publication failed with status " + response.statusCode());
             }
         }
-        catch (InterruptedException e ) {
+        catch (InterruptedException e) {
             throw new IOException(e);
+        }
+    }
+
+    @EventListener
+    public void onProjectStateChange(ProjectStateChangedEvent aEvent)
+    {
+        if (aEvent.getNewState() != ANNOTATION_FINISHED) {
+            return;
+        }
+
+        try {
+            Project project = aEvent.getProject();
+            
+            Optional<JobManifest> optManifest = readJobManifest(project);
+            if (optManifest.isEmpty()) {
+                log.trace("{} is not a HMT project - not triggering submission", project);
+                return;
+            }
+            
+            Optional<JobRequest> optJobRequest = readJobRequest(project);
+            if (optJobRequest.isEmpty()) {
+                log.trace("{} is not a HMT project - not triggering submission", project);
+                return;
+            }
+
+            publishResults(project, optJobRequest.get(), optManifest.get());
+        }
+        catch (Exception e) {
+            log.error("Unable to trigger submission");
         }
     }
 }
