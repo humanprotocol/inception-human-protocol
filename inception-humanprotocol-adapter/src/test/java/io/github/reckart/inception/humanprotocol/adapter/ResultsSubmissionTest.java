@@ -23,8 +23,9 @@ import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_REPO
 import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_USERNAME;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_HUMAN_SIGNATURE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.JOB_RESULTS_ENDPOINT;
-import static io.github.reckart.inception.humanprotocol.HumanProtocolService.EXPORT_KEY;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolService.RESULTS_KEY_SUFFIX;
 import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateBase64Signature;
+import static java.lang.String.format;
 import static java.lang.String.join;
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -138,7 +139,8 @@ public class ResultsSubmissionTest
     private static final String API_KEY = "beefdead";
     private static final int EXCHANGE_ID = 4242;
     private static final int NETWORK_ID = 54342;
-    private static final String JOB_ADDRESS = "my-project-address";
+    private static final String JOB_ADDRESS = "eadd-dead-beef-feed";
+    private static final String BUCKET = "my-bucket";
     
     static @TempDir File repositoryDir;
     static @TempDir File workDir;
@@ -172,6 +174,7 @@ public class ResultsSubmissionTest
         hmtProperties.setMetaApiUrl(metaApiServer.url("/api").toString());
         hmtProperties.setExchangeId(EXCHANGE_ID);
         hmtProperties.setApiKey(API_KEY);
+        hmtProperties.setS3Bucket(BUCKET);
                 
         if (!initialized) {
             userRepository.create(new User("admin", Role.ROLE_ADMIN));
@@ -182,7 +185,7 @@ public class ResultsSubmissionTest
     @Test
     void thatUploadIsTriggeredOnAnnotationsComplete() throws Exception
     {
-        s3Client.createBucket(CreateBucketRequest.builder().bucket(JOB_ADDRESS).build());
+        s3Client.createBucket(CreateBucketRequest.builder().bucket(BUCKET).build());
 
         // Expect results submission message
         metaApiServer.enqueue(new MockResponse().setResponseCode(200));
@@ -210,7 +213,8 @@ public class ResultsSubmissionTest
         assertThat(notification.getJobAddress()).isEqualTo(JOB_ADDRESS);
         assertThat(notification.getNetworkId()).isEqualTo(NETWORK_ID);
         assertThat(notification.getExchangeId()).isEqualTo(hmtProperties.getExchangeId());
-        assertThat(notification.getJobData().toString()).contains(JOB_ADDRESS).contains(EXPORT_KEY);
+        assertThat(notification.getJobData().toString()).isEqualTo(format("https://%s.s3.amazonaws.com/key/%s/results.zip",
+                hmtProperties.getS3Bucket(), JOB_ADDRESS));
     }
     
     private Project prepareProject() throws IOException {
@@ -231,7 +235,7 @@ public class ResultsSubmissionTest
     private Project fetchProjectFromBucket() throws IOException, ProjectExportException {
         File projectExportFile = new File(workDir, "export.zip");
         try (ResponseInputStream<GetObjectResponse> response = s3Client.getObject(
-                GetObjectRequest.builder().bucket(JOB_ADDRESS).key(EXPORT_KEY).build())) {
+                GetObjectRequest.builder().bucket(BUCKET).key(JOB_ADDRESS + "/" + RESULTS_KEY_SUFFIX).build())) {
             try (OutputStream os = new FileOutputStream(projectExportFile)) {
                 IOUtils.copyLarge(response, os);
             }

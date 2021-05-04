@@ -26,7 +26,6 @@ import javax.servlet.FilterRegistration;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
 
 import io.github.reckart.inception.humanprotocol.security.HumanSignatureValidationFilter;
@@ -40,7 +39,13 @@ import io.github.reckart.inception.humanprotocol.security.HumanSignatureValidati
 public class HumanProtocolWebInitializer
     implements ServletContextInitializer
 {
-    private @Autowired HumanProtocolProperties properties;
+    private final HumanProtocolProperties properties;
+
+    
+    public HumanProtocolWebInitializer(HumanProtocolProperties aProperties)
+    {
+        properties = aProperties;
+    }
 
     @Override
     public void onStartup(ServletContext aServletContext) throws ServletException

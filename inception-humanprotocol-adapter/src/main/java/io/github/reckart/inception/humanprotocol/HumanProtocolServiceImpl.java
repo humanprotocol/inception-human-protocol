@@ -181,10 +181,16 @@ public class HumanProtocolServiceImpl
         return repositoryProperties.getPath().toPath().resolve("hmt").resolve("job-request.json");
     }
 
+    private String getExportKey(JobRequest aJobRequest)
+    {
+        return String.format("%s/%s", aJobRequest.getJobAddress(), RESULTS_KEY_SUFFIX);
+    }
+    
     public void publishResults(Project aProject, JobRequest aJobRequest, JobManifest aJobManifest)
         throws ProjectExportException, IOException
     {
         File exportedProjectFile = null;
+        String exportKey = getExportKey(aJobRequest);
 
         try {
             ProjectExportTaskMonitor monitor = new ProjectExportTaskMonitor();
@@ -197,8 +203,8 @@ public class HumanProtocolServiceImpl
             exportedProjectFile = projectExportService.exportProject(exportRequest, monitor);
 
             s3Client.putObject(PutObjectRequest.builder() //
-                    .bucket(aJobRequest.getJobAddress()) //
-                    .key(EXPORT_KEY)//
+                    .bucket(hmtProperties.getS3Bucket()) //
+                    .key(exportKey)//
                     .build(), RequestBody.fromFile(exportedProjectFile));
         }
         finally {
@@ -210,7 +216,7 @@ public class HumanProtocolServiceImpl
         resultNotification.setJobAddress(aJobRequest.getJobAddress());
         resultNotification.setExchangeId(hmtProperties.getExchangeId());
         resultNotification.setJobData(URI.create(format("https://%s.s3.amazonaws.com/key/%s",
-                aJobRequest.getJobAddress(), EXPORT_KEY)));
+                hmtProperties.getS3Bucket(), exportKey)));
 
         postSignedMessageToMetaApi(JOB_RESULTS_ENDPOINT, resultNotification);
     }

@@ -31,4 +31,6 @@ public interface HumanProtocolProperties
     String getS3Password();
 
     String getS3Region();
+
+    String getS3Bucket();
 }

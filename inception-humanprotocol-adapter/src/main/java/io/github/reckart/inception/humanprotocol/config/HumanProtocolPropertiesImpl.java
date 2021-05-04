@@ -29,6 +29,7 @@ public class HumanProtocolPropertiesImpl
     private String s3Username;
     private String s3Password;
     private String s3Region;
+    private String s3Bucket;
 
     @Override
     public String getSecretKey()
@@ -105,5 +106,16 @@ public class HumanProtocolPropertiesImpl
     public void setS3Region(String aS3Region)
     {
         s3Region = aS3Region;
+    }
+
+    @Override
+    public String getS3Bucket()
+    {
+        return s3Bucket;
+    }
+
+    public void setS3Bucket(String aS3Bucket)
+    {
+        s3Bucket = aS3Bucket;
     }
 }

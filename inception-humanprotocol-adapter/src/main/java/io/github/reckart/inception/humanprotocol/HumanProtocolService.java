@@ -26,7 +26,7 @@ import io.github.reckart.inception.humanprotocol.model.JobManifest;
 
 public interface HumanProtocolService
 {
-    String EXPORT_KEY = "results.zip";
+    String RESULTS_KEY_SUFFIX = "results.zip";
     
     Optional<JobManifest> readJobManifest(Project aProject) throws IOException;
 

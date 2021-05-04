@@ -65,9 +65,9 @@ public class HumanProtocolAutoConfiguration
     }
 
     @Bean
-    public HumanProtocolWebInitializer humanProtocolWebInitializer()
+    public HumanProtocolWebInitializer humanProtocolWebInitializer(HumanProtocolProperties aProperties)
     {
-        return new HumanProtocolWebInitializer();
+        return new HumanProtocolWebInitializer(aProperties);
     }
 
     @Bean
