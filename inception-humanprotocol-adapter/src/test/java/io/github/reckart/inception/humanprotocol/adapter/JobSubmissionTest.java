@@ -134,6 +134,7 @@ public class JobSubmissionTest
 
     private static final String SHARED_SECRET = "deadbeef";
     private static final String API_KEY = "beefdead";
+    private static final int EXCHANGE_ID = 4242;
 
     private @Autowired RepositoryProperties repositoryProperties;
     private @Autowired WebApplicationContext context;
@@ -145,7 +146,7 @@ public class JobSubmissionTest
     private @Autowired InviteServicePropertiesImpl inviteProperties;
 
     private MockMvc mvc;
-    private MockWebServer server;
+    private MockWebServer metaApiServer;
 
     // If this is not static, for some reason the value is re-set to false before a
     // test method is invoked. However, the DB is not reset - and it should not be.
@@ -160,12 +161,13 @@ public class JobSubmissionTest
         MDC.put(Logging.KEY_REPOSITORY_PATH, repositoryProperties.getPath().toString());
         MDC.put(KEY_USERNAME, "USERNAME");
 
-        server = new MockWebServer();
-        server.start();
+        metaApiServer = new MockWebServer();
+        metaApiServer.start();
 
-        inviteProperties.setInviteBaseUrl(server.url("/inception").toString());
-        hmtProperties.setMetaApiUrl(server.url("/meta-api").toString());
-        hmtProperties.setExchangeId(9123);
+        inviteProperties.setInviteBaseUrl("http://nevermind:8080/inception");
+        
+        hmtProperties.setMetaApiUrl(metaApiServer.url("/api").toString());
+        hmtProperties.setExchangeId(EXCHANGE_ID);
         hmtProperties.setApiKey(API_KEY);
 
         // @formatter:off
@@ -188,7 +190,7 @@ public class JobSubmissionTest
     @AfterEach
     public void teardown() throws Exception
     {
-        server.shutdown();
+        metaApiServer.shutdown();
     }
 
     @Test
@@ -198,15 +200,16 @@ public class JobSubmissionTest
 
         // First expected request fetches the data
         JobManifest manifest = loadManifest(manifestFile);
-        server.enqueue(new MockResponse().setResponseCode(200).setBody(contentOf(manifestFile)));
+        metaApiServer.enqueue(new MockResponse().setResponseCode(200).setBody(contentOf(manifestFile)));
 
         // Second expected request posts the invite link information
-        server.enqueue(new MockResponse().setResponseCode(200));
+        metaApiServer.enqueue(new MockResponse().setResponseCode(200));
 
         assertThat(projectService.listProjects()) //
                 .as("Starting with emtpy database (no projects)")
                 .hasSize(0);
 
+        JobRequest jobRequest = createJobRequest();
         postJob(createJobRequest());
 
         // Validate project has been properly created
@@ -227,10 +230,10 @@ public class JobSubmissionTest
                 .isEqualTo(toPrettyJsonString(manifest));
 
         // Validate project has imported data to be labeled
-        assertThat(server.takeRequest().getPath()).as("Data loaded").isEqualTo("/data");
+        assertThat(metaApiServer.takeRequest().getPath()).as("Data loaded").isEqualTo("/data");
 
         // Validate invite link notification
-        RecordedRequest linkNotificationRequest = server.takeRequest();
+        RecordedRequest linkNotificationRequest = metaApiServer.takeRequest();
         assertThat(linkNotificationRequest.getPath()) //
                 .as("Invite link notification recieved") //
                 .endsWith(INVITE_LINK_ENDPOINT);
@@ -243,8 +246,8 @@ public class JobSubmissionTest
         assertThat(notification.getInviteLink()).contains("/p/1/join-project");
         assertThat(notification.getInviteLink())
                 .endsWith(inviteService.readProjectInvite(project).getInviteId());
-        assertThat(notification.getNetworkId()).isEqualTo(createJobRequest().getNetworkId());
-        assertThat(notification.getJobAddress()).isEqualTo(createJobRequest().getJobAddress());
+        assertThat(notification.getNetworkId()).isEqualTo(jobRequest.getNetworkId());
+        assertThat(notification.getJobAddress()).isEqualTo(jobRequest.getJobAddress());
         assertThat(notification.getExchangeId()).isEqualTo(hmtProperties.getExchangeId());
     }
 
@@ -253,7 +256,7 @@ public class JobSubmissionTest
         JobRequest jobRequest = new JobRequest();
         jobRequest.setNetworkId(12345);
         jobRequest.setJobAddress("e376b295-637a-4f6f-ba5c-3662a5d57f07");
-        jobRequest.setJobManifest(server.url("/data").uri());
+        jobRequest.setJobManifest(metaApiServer.url("/data").uri());
         return jobRequest;
     }
 

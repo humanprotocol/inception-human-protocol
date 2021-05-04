@@ -28,10 +28,18 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
  * <pre>
  * <code>
  * {
- *   network_id: int,
- *   job_address: string,
- *   job_data: string:url
- * }
+ *   "network_id": <int>,
+ *   "exchange_id": <int>,
+ *   "job_address": <string>,
+ *   "job_data": <string:url>,
+ *   "payouts": [
+ *     {
+ *       "wallet": <string>,
+ *       "tasks": ['<string:task_id>']
+ *     }
+ *     ...
+ *   ]
+ * } 
  * </code>
  * </pre>
  */
@@ -40,6 +48,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 public class JobResultSubmission
 {
     private int networkId;
+    private int exchangeId;
     private String jobAddress;
     private URI jobData;
 
@@ -72,4 +81,16 @@ public class JobResultSubmission
     {
         jobData = aJobData;
     }
+
+    public int getExchangeId()
+    {
+        return exchangeId;
+    }
+
+    public void setExchangeId(int aExchangeId)
+    {
+        exchangeId = aExchangeId;
+    }
+    
+    
 }

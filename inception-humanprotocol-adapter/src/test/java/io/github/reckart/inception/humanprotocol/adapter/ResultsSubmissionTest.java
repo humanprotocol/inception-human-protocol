@@ -18,9 +18,13 @@ package io.github.reckart.inception.humanprotocol.adapter;
 
 import static de.tudarmstadt.ukp.clarin.webanno.model.ProjectState.ANNOTATION_FINISHED;
 import static de.tudarmstadt.ukp.clarin.webanno.model.ProjectState.ANNOTATION_IN_PROGRESS;
+import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.fromJsonString;
 import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_REPOSITORY_PATH;
 import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_USERNAME;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_HUMAN_SIGNATURE;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.JOB_RESULTS_ENDPOINT;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolService.EXPORT_KEY;
+import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateBase64Signature;
 import static java.lang.String.join;
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -94,8 +98,13 @@ import de.tudarmstadt.ukp.inception.sharing.config.InviteServiceAutoConfiguratio
 import de.tudarmstadt.ukp.inception.ui.core.dashboard.config.DashboardAutoConfiguration;
 import io.github.reckart.inception.humanprotocol.HumanProtocolServiceImpl;
 import io.github.reckart.inception.humanprotocol.config.HumanProtocolAutoConfiguration;
+import io.github.reckart.inception.humanprotocol.config.HumanProtocolPropertiesImpl;
 import io.github.reckart.inception.humanprotocol.messages.JobRequest;
+import io.github.reckart.inception.humanprotocol.messages.JobResultSubmission;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
+import mockwebserver3.MockResponse;
+import mockwebserver3.MockWebServer;
+import mockwebserver3.RecordedRequest;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
@@ -126,7 +135,10 @@ public class ResultsSubmissionTest
             .withSecureConnection(false).build();
     private final S3Client s3Client = S3_MOCK.createS3ClientV2();
 
-    private final String BUCKET_NAME = "my-project-address";
+    private static final String API_KEY = "beefdead";
+    private static final int EXCHANGE_ID = 4242;
+    private static final int NETWORK_ID = 54342;
+    private static final String JOB_ADDRESS = "my-project-address";
     
     static @TempDir File repositoryDir;
     static @TempDir File workDir;
@@ -135,8 +147,11 @@ public class ResultsSubmissionTest
     private @Autowired UserDao userRepository;
     private @Autowired ProjectService projectService;
     private @Autowired HumanProtocolServiceImpl hmtService;
+    private @Autowired HumanProtocolPropertiesImpl hmtProperties;
     private @Autowired ApplicationEventPublisher applicationEventPublisher;
     private @Autowired ProjectExportService projectExportService;
+    
+    private MockWebServer metaApiServer;
     
     // If this is not static, for some reason the value is re-set to false before a
     // test method is invoked. However, the DB is not reset - and it should not be.
@@ -151,6 +166,13 @@ public class ResultsSubmissionTest
         MDC.put(KEY_REPOSITORY_PATH, repositoryProperties.getPath().toString());
         MDC.put(KEY_USERNAME, "USERNAME");
 
+        metaApiServer = new MockWebServer();
+        metaApiServer.start();
+
+        hmtProperties.setMetaApiUrl(metaApiServer.url("/api").toString());
+        hmtProperties.setExchangeId(EXCHANGE_ID);
+        hmtProperties.setApiKey(API_KEY);
+                
         if (!initialized) {
             userRepository.create(new User("admin", Role.ROLE_ADMIN));
             initialized = true;
@@ -160,17 +182,35 @@ public class ResultsSubmissionTest
     @Test
     void thatUploadIsTriggeredOnAnnotationsComplete() throws Exception
     {
-        s3Client.createBucket(CreateBucketRequest.builder().bucket(BUCKET_NAME).build());
-        
+        s3Client.createBucket(CreateBucketRequest.builder().bucket(JOB_ADDRESS).build());
+
+        // Expect results submission message
+        metaApiServer.enqueue(new MockResponse().setResponseCode(200));
+
         Project project = prepareProject();
 
         // Trigger project submissions via event
         applicationEventPublisher
                 .publishEvent(new ProjectStateChangedEvent(this, project, ANNOTATION_IN_PROGRESS));
 
+        // Validate that the submitted results are as expected
         Project copyOfProject = fetchProjectFromBucket();
-        
         assertThat(copyOfProject.getName()).isEqualTo("copy_of_" + project.getName());
+        
+        // Validate invite link notification
+        RecordedRequest jobResultsNotificationRequest = metaApiServer.takeRequest();
+        assertThat(jobResultsNotificationRequest.getPath()) //
+                .as("Invite link notification recieved") //
+                .endsWith(JOB_RESULTS_ENDPOINT);
+        String serializedNotification = jobResultsNotificationRequest.getBody().readUtf8();
+        assertThat(jobResultsNotificationRequest.getHeader(HEADER_X_HUMAN_SIGNATURE))
+                .isEqualTo(generateBase64Signature(API_KEY, serializedNotification));
+        JobResultSubmission notification = fromJsonString(JobResultSubmission.class,
+                serializedNotification);
+        assertThat(notification.getJobAddress()).isEqualTo(JOB_ADDRESS);
+        assertThat(notification.getNetworkId()).isEqualTo(NETWORK_ID);
+        assertThat(notification.getExchangeId()).isEqualTo(hmtProperties.getExchangeId());
+        assertThat(notification.getJobData().toString()).contains(JOB_ADDRESS).contains(EXPORT_KEY);
     }
     
     private Project prepareProject() throws IOException {
@@ -182,7 +222,8 @@ public class ResultsSubmissionTest
         hmtService.writeJobManifest(project, jobManifest);
 
         JobRequest jobRequest = new JobRequest();
-        jobRequest.setJobAddress(BUCKET_NAME);
+        jobRequest.setJobAddress(JOB_ADDRESS);
+        jobRequest.setNetworkId(NETWORK_ID);
         hmtService.writeJobRequest(project, jobRequest);
         return project;
     }
@@ -190,7 +231,7 @@ public class ResultsSubmissionTest
     private Project fetchProjectFromBucket() throws IOException, ProjectExportException {
         File projectExportFile = new File(workDir, "export.zip");
         try (ResponseInputStream<GetObjectResponse> response = s3Client.getObject(
-                GetObjectRequest.builder().bucket(BUCKET_NAME).key(EXPORT_KEY).build())) {
+                GetObjectRequest.builder().bucket(JOB_ADDRESS).key(EXPORT_KEY).build())) {
             try (OutputStream os = new FileOutputStream(projectExportFile)) {
                 IOUtils.copyLarge(response, os);
             }

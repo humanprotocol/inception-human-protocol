@@ -20,7 +20,9 @@ import static de.tudarmstadt.ukp.clarin.webanno.model.ProjectState.ANNOTATION_FI
 import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.toPrettyJsonString;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_HUMAN_SIGNATURE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.INVITE_LINK_ENDPOINT;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.JOB_RESULTS_ENDPOINT;
 import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateBase64Signature;
+import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.createDirectories;
 import static java.nio.file.Files.exists;
@@ -64,6 +66,7 @@ import io.github.reckart.inception.humanprotocol.config.HumanProtocolAutoConfigu
 import io.github.reckart.inception.humanprotocol.config.HumanProtocolProperties;
 import io.github.reckart.inception.humanprotocol.messages.InviteLinkNotification;
 import io.github.reckart.inception.humanprotocol.messages.JobRequest;
+import io.github.reckart.inception.humanprotocol.messages.JobResultSubmission;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -201,6 +204,15 @@ public class HumanProtocolServiceImpl
         finally {
             FileUtils.deleteQuietly(exportedProjectFile);
         }
+
+        JobResultSubmission resultNotification = new JobResultSubmission();
+        resultNotification.setNetworkId(aJobRequest.getNetworkId());
+        resultNotification.setJobAddress(aJobRequest.getJobAddress());
+        resultNotification.setExchangeId(hmtProperties.getExchangeId());
+        resultNotification.setJobData(URI.create(format("https://%s.s3.amazonaws.com/key/%s",
+                aJobRequest.getJobAddress(), EXPORT_KEY)));
+
+        postSignedMessageToMetaApi(JOB_RESULTS_ENDPOINT, resultNotification);
     }
 
     @Override
@@ -227,7 +239,12 @@ public class HumanProtocolServiceImpl
         msg.setJobAddress(jobRequest.getJobAddress());
         msg.setNetworkId(jobRequest.getNetworkId());
 
-        String serializedMessage = toPrettyJsonString(msg);
+        postSignedMessageToMetaApi(INVITE_LINK_ENDPOINT, msg);
+    }
+
+    private void postSignedMessageToMetaApi(String aEndpoint, Object aMessage) throws IOException
+    {
+        String serializedMessage = toPrettyJsonString(aMessage);
         String signature;
         try {
             signature = generateBase64Signature(hmtProperties.getApiKey(), serializedMessage);
@@ -235,10 +252,10 @@ public class HumanProtocolServiceImpl
         catch (NoSuchAlgorithmException | InvalidKeyException ex) {
             throw new IOException("Unable to generate message signature", ex);
         }
-        
+
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder() //
-                .uri(URI.create(hmtProperties.getMetaApiUrl() + INVITE_LINK_ENDPOINT)) //
+                .uri(URI.create(hmtProperties.getMetaApiUrl() + aEndpoint)) //
                 .header(HEADER_X_HUMAN_SIGNATURE, signature)
                 .POST(BodyPublishers.ofString(serializedMessage, UTF_8)).build();
 
@@ -263,13 +280,13 @@ public class HumanProtocolServiceImpl
 
         try {
             Project project = aEvent.getProject();
-            
+
             Optional<JobManifest> optManifest = readJobManifest(project);
             if (optManifest.isEmpty()) {
                 log.trace("{} is not a HMT project - not triggering submission", project);
                 return;
             }
-            
+
             Optional<JobRequest> optJobRequest = readJobRequest(project);
             if (optJobRequest.isEmpty()) {
                 log.trace("{} is not a HMT project - not triggering submission", project);
