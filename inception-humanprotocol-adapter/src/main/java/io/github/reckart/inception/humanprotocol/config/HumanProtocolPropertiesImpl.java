@@ -22,24 +22,37 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class HumanProtocolPropertiesImpl
     implements HumanProtocolProperties
 {
-    private String secretKey;
-    private String metaApiUrl;
-    private String apiKey;
     private int exchangeId;
+    private String exchangeKey;
+    
+    private String metaApiUrl;
+    private String metaApiKey;
+    
     private String s3Username;
     private String s3Password;
     private String s3Region;
     private String s3Bucket;
 
     @Override
-    public String getSecretKey()
+    public int getExchangeId()
     {
-        return secretKey;
+        return exchangeId;
     }
 
-    public void setSecretKey(String aSecretKey)
+    public void setExchangeId(int aExchangeId)
     {
-        secretKey = aSecretKey;
+        exchangeId = aExchangeId;
+    }
+    
+    @Override
+    public String getExchangeKey()
+    {
+        return exchangeKey;
+    }
+
+    public void setExchangeKey(String aKey)
+    {
+        exchangeKey = aKey;
     }
 
     @Override
@@ -54,25 +67,14 @@ public class HumanProtocolPropertiesImpl
     }
 
     @Override
-    public String getApiKey()
+    public String getMetaApiKey()
     {
-        return apiKey;
+        return metaApiKey;
     }
 
-    public void setApiKey(String aApiKey)
+    public void setMetaApiKey(String aKey)
     {
-        apiKey = aApiKey;
-    }
-
-    @Override
-    public int getExchangeId()
-    {
-        return exchangeId;
-    }
-
-    public void setExchangeId(int aExchangeId)
-    {
-        exchangeId = aExchangeId;
+        metaApiKey = aKey;
     }
 
     @Override

@@ -253,7 +253,7 @@ public class HumanProtocolServiceImpl
         String serializedMessage = toPrettyJsonString(aMessage);
         String signature;
         try {
-            signature = generateBase64Signature(hmtProperties.getApiKey(), serializedMessage);
+            signature = generateBase64Signature(hmtProperties.getMetaApiKey(), serializedMessage);
         }
         catch (NoSuchAlgorithmException | InvalidKeyException ex) {
             throw new IOException("Unable to generate message signature", ex);

@@ -173,7 +173,7 @@ public class ResultsSubmissionTest
 
         hmtProperties.setMetaApiUrl(metaApiServer.url("/api").toString());
         hmtProperties.setExchangeId(EXCHANGE_ID);
-        hmtProperties.setApiKey(API_KEY);
+        hmtProperties.setMetaApiKey(API_KEY);
         hmtProperties.setS3Bucket(BUCKET);
                 
         if (!initialized) {

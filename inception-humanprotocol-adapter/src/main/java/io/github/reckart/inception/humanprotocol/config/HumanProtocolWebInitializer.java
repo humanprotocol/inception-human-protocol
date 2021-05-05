@@ -54,6 +54,6 @@ public class HumanProtocolWebInitializer
                 .addFilter("humanSignatureValidation", HumanSignatureValidationFilter.class);
         humanSignatureValidationFilter.addMappingForUrlPatterns(EnumSet.of(REQUEST), false,
                 API_BASE + "/*");
-        humanSignatureValidationFilter.setInitParameter(PARAM_SECRET_KEY, properties.getSecretKey());
+        humanSignatureValidationFilter.setInitParameter(PARAM_SECRET_KEY, properties.getExchangeKey());
     }
 }

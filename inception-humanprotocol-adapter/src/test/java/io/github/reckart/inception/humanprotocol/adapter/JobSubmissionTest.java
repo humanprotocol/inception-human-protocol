@@ -168,7 +168,7 @@ public class JobSubmissionTest
         
         hmtProperties.setMetaApiUrl(metaApiServer.url("/api").toString());
         hmtProperties.setExchangeId(EXCHANGE_ID);
-        hmtProperties.setApiKey(API_KEY);
+        hmtProperties.setMetaApiKey(API_KEY);
 
         // @formatter:off
         mvc = MockMvcBuilders

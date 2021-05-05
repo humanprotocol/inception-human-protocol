@@ -18,11 +18,11 @@ package io.github.reckart.inception.humanprotocol.config;
 
 public interface HumanProtocolProperties
 {
-    String getSecretKey();
+    String getExchangeKey();
 
     int getExchangeId();
 
-    String getApiKey();
+    String getMetaApiKey();
 
     String getMetaApiUrl();
 
