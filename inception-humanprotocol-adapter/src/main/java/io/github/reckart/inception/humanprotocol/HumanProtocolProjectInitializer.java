@@ -223,8 +223,7 @@ public class HumanProtocolProjectInitializer
         WorkloadManager mgr = workloadService.loadOrCreateWorkloadManagerConfiguration(aProject);
         mgr.setType(dynamicWorkload.getId());
         DynamicWorkloadTraits traits = dynamicWorkload.readTraits(mgr);
-        // FIXME: Do we have the number of annotators per document in the manifest?
-        traits.setDefaultNumberOfAnnotations(3);
+        traits.setDefaultNumberOfAnnotations(1);
         workloadService.saveConfiguration(mgr);
     }
  
