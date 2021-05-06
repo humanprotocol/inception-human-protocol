@@ -22,7 +22,7 @@ import io.github.reckart.inception.humanprotocol.messages.JobRequest;
 
 public interface HumanProtocolController
 {
-    static final String API_BASE = "/api/human-protocol/v1";
+    static final String API_BASE = "/human-protocol/v1";
     static final String SUBMIT_JOB = "submitJob";
     
     ResponseEntity<Void> submitJob(boolean aSignatureValue, JobRequest aJobRequest) throws Exception;

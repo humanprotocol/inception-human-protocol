@@ -20,12 +20,13 @@ import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.fromJsonString;
 import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.toJsonString;
 import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.toPrettyJsonString;
 import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_USERNAME;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_EXCHANGE_SIGNATURE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_HUMAN_SIGNATURE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.INVITE_LINK_ENDPOINT;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolController.API_BASE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolController.SUBMIT_JOB;
 import static io.github.reckart.inception.humanprotocol.JobManifestUtils.loadManifest;
-import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateBase64Signature;
+import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateHexSignature;
 import static java.util.Arrays.asList;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,7 +42,6 @@ import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-
 import javax.persistence.EntityManager;
 
 import org.junit.jupiter.api.AfterEach;
@@ -61,6 +61,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
@@ -120,6 +121,7 @@ import mockwebserver3.RecordedRequest;
         "human-protocol.s3Region=us-west-2", //
         "human-protocol.s3Username=dummy", //
         "human-protocol.s3Password=dummy", //
+        "human-protocol.human-api-key=" + JobSubmissionTest.HUMAN_API_KEY, //
         "workload.dynamic.enabled=true", //
         "sharing.invites.enabled=true" })
 @EnableWebSecurity
@@ -132,9 +134,9 @@ public class JobSubmissionTest
 {
     static @TempDir File repositoryDir;
 
-    private static final String SHARED_SECRET = "deadbeef";
-    private static final String API_KEY = "beefdead";
     private static final int EXCHANGE_ID = 4242;
+    private static final String EXCHANGE_KEY = "de85eb7e-aea9-11eb-8529-0242ac130003";
+    static final String HUMAN_API_KEY = "e984c52c-aea9-11eb-8529-0242ac130003";
 
     private @Autowired RepositoryProperties repositoryProperties;
     private @Autowired WebApplicationContext context;
@@ -166,9 +168,10 @@ public class JobSubmissionTest
 
         inviteProperties.setInviteBaseUrl("http://nevermind:8080/inception");
         
-        hmtProperties.setMetaApiUrl(metaApiServer.url("/api").toString());
+        hmtProperties.setHumanApiUrl(metaApiServer.url("/api").toString());
         hmtProperties.setExchangeId(EXCHANGE_ID);
-        hmtProperties.setMetaApiKey(API_KEY);
+        hmtProperties.setExchangeKey(EXCHANGE_KEY);
+        hmtProperties.setHumanApiKey(HUMAN_API_KEY);
 
         // @formatter:off
         mvc = MockMvcBuilders
@@ -176,7 +179,7 @@ public class JobSubmissionTest
                 .alwaysDo(print())
                 .apply(SecurityMockMvcConfigurers.springSecurity())
                 .addFilters(new LoggingFilter(repositoryProperties.getPath().toString()))
-                .addFilters(new HumanSignatureValidationFilter(SHARED_SECRET))
+                .addFilters(new HumanSignatureValidationFilter(hmtProperties))
                 .addFilters(new OpenCasStorageSessionForRequestFilter())
                 .build();
         // @formatter:on
@@ -238,8 +241,10 @@ public class JobSubmissionTest
                 .as("Invite link notification recieved") //
                 .endsWith(INVITE_LINK_ENDPOINT);
         String serializedNotification = linkNotificationRequest.getBody().readUtf8();
-        assertThat(linkNotificationRequest.getHeader(HEADER_X_HUMAN_SIGNATURE))
-                .isEqualTo(generateBase64Signature(API_KEY, serializedNotification));
+        assertThat(linkNotificationRequest.getHeader(HEADER_X_EXCHANGE_SIGNATURE))
+                .isEqualTo(generateHexSignature(EXCHANGE_KEY, serializedNotification));
+        assertThat(linkNotificationRequest.getHeader(HttpHeaders.CONTENT_TYPE))
+                .isEqualTo(MediaType.APPLICATION_JSON_VALUE);
         InviteLinkNotification notification = fromJsonString(InviteLinkNotification.class,
                 serializedNotification);
         assertThat(notification.getInviteLink()).startsWith(inviteProperties.getInviteBaseUrl());
@@ -263,7 +268,7 @@ public class JobSubmissionTest
     private void postJob(JobRequest jobRequest) throws Exception
     {
         String body = toJsonString(jobRequest);
-        String signature = generateBase64Signature(SHARED_SECRET, body);
+        String signature = generateHexSignature(HUMAN_API_KEY, body);
 
         // @formatter:off
         mvc.perform(post(API_BASE + "/" + SUBMIT_JOB)

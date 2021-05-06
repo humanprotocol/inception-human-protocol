@@ -22,9 +22,9 @@ public interface HumanProtocolProperties
 
     int getExchangeId();
 
-    String getMetaApiKey();
+    String getHumanApiKey();
 
-    String getMetaApiUrl();
+    String getHumanApiUrl();
 
     String getS3Username();
 

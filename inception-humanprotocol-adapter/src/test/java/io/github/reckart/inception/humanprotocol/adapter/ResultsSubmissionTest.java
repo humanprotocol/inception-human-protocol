@@ -21,10 +21,10 @@ import static de.tudarmstadt.ukp.clarin.webanno.model.ProjectState.ANNOTATION_IN
 import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.fromJsonString;
 import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_REPOSITORY_PATH;
 import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_USERNAME;
-import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_HUMAN_SIGNATURE;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_EXCHANGE_SIGNATURE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.JOB_RESULTS_ENDPOINT;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolService.RESULTS_KEY_SUFFIX;
-import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateBase64Signature;
+import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateHexSignature;
 import static java.lang.String.format;
 import static java.lang.String.join;
 import static java.util.Arrays.asList;
@@ -57,6 +57,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
@@ -118,6 +120,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 @ExtendWith(SpringExtension.class)
 @EnableAutoConfiguration(exclude = LiquibaseAutoConfiguration.class)
 @SpringBootTest(webEnvironment = MOCK, properties = { //
+        "human-protocol.human-api-key=" + ResultsSubmissionTest.HUMAN_API_KEY, //
         "workload.dynamic.enabled=true", //
         "sharing.invites.enabled=true"})
 @EnableWebSecurity
@@ -136,7 +139,8 @@ public class ResultsSubmissionTest
             .withSecureConnection(false).build();
     private final S3Client s3Client = S3_MOCK.createS3ClientV2();
 
-    private static final String API_KEY = "beefdead";
+    private static final String EXCHANGE_KEY = "de85eb7e-aea9-11eb-8529-0242ac130003";
+    static final String HUMAN_API_KEY = "e984c52c-aea9-11eb-8529-0242ac130003";
     private static final int EXCHANGE_ID = 4242;
     private static final int NETWORK_ID = 54342;
     private static final String JOB_ADDRESS = "eadd-dead-beef-feed";
@@ -171,9 +175,10 @@ public class ResultsSubmissionTest
         metaApiServer = new MockWebServer();
         metaApiServer.start();
 
-        hmtProperties.setMetaApiUrl(metaApiServer.url("/api").toString());
+        hmtProperties.setHumanApiUrl(metaApiServer.url("/api").toString());
         hmtProperties.setExchangeId(EXCHANGE_ID);
-        hmtProperties.setMetaApiKey(API_KEY);
+        hmtProperties.setExchangeKey(EXCHANGE_KEY);
+        hmtProperties.setHumanApiKey(HUMAN_API_KEY);
         hmtProperties.setS3Bucket(BUCKET);
                 
         if (!initialized) {
@@ -206,8 +211,10 @@ public class ResultsSubmissionTest
                 .as("Invite link notification recieved") //
                 .endsWith(JOB_RESULTS_ENDPOINT);
         String serializedNotification = jobResultsNotificationRequest.getBody().readUtf8();
-        assertThat(jobResultsNotificationRequest.getHeader(HEADER_X_HUMAN_SIGNATURE))
-                .isEqualTo(generateBase64Signature(API_KEY, serializedNotification));
+        assertThat(jobResultsNotificationRequest.getHeader(HEADER_X_EXCHANGE_SIGNATURE))
+                .isEqualTo(generateHexSignature(EXCHANGE_KEY, serializedNotification));
+        assertThat(jobResultsNotificationRequest.getHeader(HttpHeaders.CONTENT_TYPE))
+                .isEqualTo(MediaType.APPLICATION_JSON_VALUE);
         JobResultSubmission notification = fromJsonString(JobResultSubmission.class,
                 serializedNotification);
         assertThat(notification.getJobAddress()).isEqualTo(JOB_ADDRESS);

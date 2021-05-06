@@ -16,14 +16,20 @@
  */
 package io.github.reckart.inception.humanprotocol.config;
 
+import static io.github.reckart.inception.humanprotocol.HumanProtocolController.API_BASE;
 import org.springdoc.core.GroupedOpenApi;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.http.SessionCreationPolicy;
 
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.RepositoryProperties;
@@ -33,6 +39,7 @@ import io.github.reckart.inception.humanprotocol.HumanProtocolController;
 import io.github.reckart.inception.humanprotocol.HumanProtocolControllerImpl;
 import io.github.reckart.inception.humanprotocol.HumanProtocolService;
 import io.github.reckart.inception.humanprotocol.HumanProtocolServiceImpl;
+import io.github.reckart.inception.humanprotocol.security.HumanSignatureValidationFilter;
 import io.swagger.v3.oas.models.info.Info;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -45,18 +52,42 @@ import software.amazon.awssdk.services.s3.S3Client;
 @AutoConfigureBefore({ WebMvcAutoConfiguration.class })
 public class HumanProtocolAutoConfiguration
 {
+    @Order(2)
+    @Configuration
+    public static class HumanProtocolApiSecurity
+        extends WebSecurityConfigurerAdapter
+    {
+        @Override
+        protected void configure(HttpSecurity aHttp) throws Exception
+        {
+            // @formatter:off
+            aHttp
+                .antMatcher(API_BASE + "/**")
+                .csrf().disable()
+                .authorizeRequests()
+                    // Authentication in Human Protocol requests is done via signed messages,
+                    // so we need to disable the basic authentication that is set up by INCEpTION
+                    // for the Human Protocol API calls
+                    .anyRequest().permitAll()
+                .and()
+                .sessionManagement()
+                    .sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+            // @formatter:on
+        }
+    }    
+    
     @Bean
     public HumanProtocolController humanProtocolController(ApplicationContext aApplicationContext,
             ProjectService aProjectService, HumanProtocolService aHmtService)
     {
         return new HumanProtocolControllerImpl(aApplicationContext, aProjectService, aHmtService);
     }
-
+    
     @Bean
     public GroupedOpenApi humanProtocolDocket()
     {
         return GroupedOpenApi.builder().group("human-protocol")
-                .pathsToMatch(HumanProtocolController.API_BASE + "/**") //
+                .pathsToMatch(API_BASE + "/**") //
                 .addOpenApiCustomiser(openApi -> { //
                     openApi.info(new Info() //
                             .title("Human Protocol API") //
@@ -64,10 +95,21 @@ public class HumanProtocolAutoConfiguration
                 }).build();
     }
 
+//    @ConditionalOnBean(HumanSignatureValidationFilter.class)
     @Bean
-    public HumanProtocolWebInitializer humanProtocolWebInitializer(HumanProtocolProperties aProperties)
+    public FilterRegistrationBean<HumanSignatureValidationFilter> registration(
+            HumanSignatureValidationFilter aFilter)
     {
-        return new HumanProtocolWebInitializer(aProperties);
+        FilterRegistrationBean<HumanSignatureValidationFilter> registration = new FilterRegistrationBean<>(
+                aFilter);
+        registration.addUrlPatterns(API_BASE + "/*");
+//        registration.addInitParameter(PARAM_HUMAN_API_KEY, aProperties.getHumanApiKey());
+        return registration;
+    }
+    
+    @Bean
+    public HumanSignatureValidationFilter humanSignatureValidationFilter(HumanProtocolProperties aProperties) {
+        return new HumanSignatureValidationFilter(aProperties);
     }
 
     @Bean

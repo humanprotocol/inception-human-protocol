@@ -18,10 +18,10 @@ package io.github.reckart.inception.humanprotocol;
 
 import static de.tudarmstadt.ukp.clarin.webanno.model.ProjectState.ANNOTATION_FINISHED;
 import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.toPrettyJsonString;
-import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_HUMAN_SIGNATURE;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_EXCHANGE_SIGNATURE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.INVITE_LINK_ENDPOINT;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.JOB_RESULTS_ENDPOINT;
-import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateBase64Signature;
+import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateHexSignature;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.createDirectories;
@@ -50,6 +50,8 @@ import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 import de.tudarmstadt.ukp.clarin.webanno.api.RepositoryProperties;
 import de.tudarmstadt.ukp.clarin.webanno.api.event.ProjectStateChangedEvent;
@@ -206,6 +208,7 @@ public class HumanProtocolServiceImpl
                     .bucket(hmtProperties.getS3Bucket()) //
                     .key(exportKey)//
                     .build(), RequestBody.fromFile(exportedProjectFile));
+            log.info("Published results to S3");
         }
         finally {
             FileUtils.deleteQuietly(exportedProjectFile);
@@ -218,7 +221,8 @@ public class HumanProtocolServiceImpl
         resultNotification.setJobData(URI.create(format("https://%s.s3.amazonaws.com/key/%s",
                 hmtProperties.getS3Bucket(), exportKey)));
 
-        postSignedMessageToMetaApi(JOB_RESULTS_ENDPOINT, resultNotification);
+        postSignedMessageToHumanApi(JOB_RESULTS_ENDPOINT, resultNotification);
+        log.info("Notified Human API about the results");
     }
 
     @Override
@@ -230,8 +234,8 @@ public class HumanProtocolServiceImpl
             return;
         }
 
-        if (hmtProperties.getMetaApiUrl() == null) {
-            log.warn("No meta API URL has been provided - not sending invite link");
+        if (hmtProperties.getHumanApiUrl() == null) {
+            log.warn("No Human API URL has been provided - not sending invite link");
             return;
         }
 
@@ -245,31 +249,34 @@ public class HumanProtocolServiceImpl
         msg.setJobAddress(jobRequest.getJobAddress());
         msg.setNetworkId(jobRequest.getNetworkId());
 
-        postSignedMessageToMetaApi(INVITE_LINK_ENDPOINT, msg);
+        postSignedMessageToHumanApi(INVITE_LINK_ENDPOINT, msg);
+        
+        log.info("Notified Human API about the invite link");
     }
 
-    private void postSignedMessageToMetaApi(String aEndpoint, Object aMessage) throws IOException
+    private void postSignedMessageToHumanApi(String aEndpoint, Object aMessage) throws IOException
     {
         String serializedMessage = toPrettyJsonString(aMessage);
         String signature;
         try {
-            signature = generateBase64Signature(hmtProperties.getMetaApiKey(), serializedMessage);
+            signature = generateHexSignature(hmtProperties.getExchangeKey(), serializedMessage);
         }
         catch (NoSuchAlgorithmException | InvalidKeyException ex) {
             throw new IOException("Unable to generate message signature", ex);
         }
-
+        
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder() //
-                .uri(URI.create(hmtProperties.getMetaApiUrl() + aEndpoint)) //
-                .header(HEADER_X_HUMAN_SIGNATURE, signature)
+                .uri(URI.create(hmtProperties.getHumanApiUrl() + aEndpoint)) //
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .header(HEADER_X_EXCHANGE_SIGNATURE, signature)
                 .POST(BodyPublishers.ofString(serializedMessage, UTF_8)).build();
 
         try {
-            HttpResponse<InputStream> response = client.send(request, BodyHandlers.ofInputStream());
+            HttpResponse<String> response = client.send(request, BodyHandlers.ofString(UTF_8));
             if (response.statusCode() != 200) {
-                throw new IOException(
-                        "Invite link publication failed with status " + response.statusCode());
+                throw new IOException("Posting message failed with status "
+                        + response.statusCode() + ": " + response.body());
             }
         }
         catch (InterruptedException e) {
@@ -302,7 +309,7 @@ public class HumanProtocolServiceImpl
             publishResults(project, optJobRequest.get(), optManifest.get());
         }
         catch (Exception e) {
-            log.error("Unable to trigger submission");
+            log.error("Unable to trigger submission", e);
         }
     }
 }

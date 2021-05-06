@@ -16,23 +16,59 @@
  */
 package io.github.reckart.inception.humanprotocol;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.commons.codec.binary.Base64.decodeBase64;
-import static org.apache.commons.codec.binary.Base64.encodeBase64String;
-
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.UUID;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
+
 public class SignatureUtils
 {
-    public static String generateBase64Signature(String aSecredKey, String aPayload)
+    private static final String HMAC_SHA256 = "HmacSHA256";
+
+    public static String generateHexSignature(String aSecretKey, String aPayload)
         throws NoSuchAlgorithmException, InvalidKeyException
     {
-        Mac mac = Mac.getInstance("HmacSHA256");
-        mac.init(new SecretKeySpec(decodeBase64(aSecredKey), "HmacSHA256"));
-        return encodeBase64String(mac.doFinal(aPayload.getBytes(UTF_8)));
+        return generateHexSignature(UUID.fromString(aSecretKey), aPayload.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public static String generateHexSignature(String aSecretKey, byte[] aPayload)
+        throws NoSuchAlgorithmException, InvalidKeyException, DecoderException
+    {
+        return generateHexSignature(UUID.fromString(aSecretKey), aPayload);
+    }
+
+    public static String generateHexSignature(UUID aSecretKey, String aPayload)
+        throws NoSuchAlgorithmException, InvalidKeyException
+    {
+        return generateHexSignature(uuidToBytes(aSecretKey), aPayload.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public static String generateHexSignature(UUID aSecretKey, byte[] aPayload)
+        throws NoSuchAlgorithmException, InvalidKeyException
+    {
+        return generateHexSignature(uuidToBytes(aSecretKey), aPayload);
+    }
+
+    public static String generateHexSignature(byte[] aSecretKey, byte[] aPayload)
+        throws NoSuchAlgorithmException, InvalidKeyException
+    {
+        Mac mac = Mac.getInstance(HMAC_SHA256);
+        mac.init(new SecretKeySpec(aSecretKey, HMAC_SHA256));
+        return Hex.encodeHexString(mac.doFinal(aPayload));
+    }
+
+    public static byte[] uuidToBytes(UUID aKey)
+    {
+        ByteBuffer buf = ByteBuffer.wrap(new byte[16]);
+        buf.putLong(aKey.getMostSignificantBits());
+        buf.putLong(aKey.getLeastSignificantBits());
+        return buf.array();
     }
 }

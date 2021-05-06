@@ -16,18 +16,15 @@
  */
 package io.github.reckart.inception.humanprotocol.security;
 
+import static de.tudarmstadt.ukp.clarin.webanno.security.model.Role.ROLE_ADMIN;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_HUMAN_SIGNATURE;
-import static org.apache.commons.codec.binary.Base64.decodeBase64;
-import static org.apache.commons.codec.binary.Base64.encodeBase64String;
+import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateHexSignature;
+import static java.util.Arrays.asList;
 import static org.apache.commons.io.IOUtils.toByteArray;
 
 import java.io.IOException;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import javax.servlet.Filter;
+import java.util.Collections;
 import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -36,48 +33,38 @@ import javax.servlet.http.HttpServletRequest;
 import org.apache.wicket.util.lang.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
+import org.springframework.web.filter.GenericFilterBean;
+
+import io.github.reckart.inception.humanprotocol.config.HumanProtocolProperties;
 
 public class HumanSignatureValidationFilter
-    implements Filter
+    extends GenericFilterBean
 {
     private final Logger log = LoggerFactory.getLogger(getClass());
-    
-    public static final String PARAM_SECRET_KEY = "secretKey";
+
+    public static final String PARAM_HUMAN_API_KEY = "humanApiKey";
     public static final String ANY_KEY = "*";
 
     public static final String ATTR_SIGNATURE_VALID = "io.github.reckart.inception."
             + "humanprotocol.security.HumanSignatureValidationFilter#signatureValue";
-    
-    private byte[] secretKey;
 
-    public HumanSignatureValidationFilter()
-    {
-        // Initialization happens in init method
-    }
+    private String humanApiKey;
 
-    public HumanSignatureValidationFilter(byte[] aSecretKey)
+    @Autowired
+    public HumanSignatureValidationFilter(HumanProtocolProperties aProperties)
     {
-        secretKey = aSecretKey;
-    }
-
-    public HumanSignatureValidationFilter(String aSecretKey)
-    {
-        secretKey = decodeBase64(aSecretKey);
-    }
-
-    @Override
-    public void init(FilterConfig aFilterConfig) throws ServletException
-    {
-        Filter.super.init(aFilterConfig);
-        
-        if (ANY_KEY.equals(aFilterConfig.getInitParameter(PARAM_SECRET_KEY))) {
-            secretKey = null;
+        if (ANY_KEY.equals(aProperties.getHumanApiKey())) {
+            humanApiKey = null;
         }
         else {
-            secretKey = decodeBase64(aFilterConfig.getInitParameter(PARAM_SECRET_KEY));
+            humanApiKey = aProperties.getHumanApiKey();
         }
     }
-    
+
     @Override
     public void doFilter(ServletRequest aRequest, ServletResponse aResponse, FilterChain aChain)
         throws IOException, ServletException
@@ -89,41 +76,50 @@ public class HumanSignatureValidationFilter
         }
 
         // If no secret key is set (i.e. any key is accepted), we always mark the signature as valid
-        if (secretKey == null) {
+        if (humanApiKey == null) {
             aRequest.setAttribute(ATTR_SIGNATURE_VALID, true);
             aChain.doFilter(aRequest, aResponse);
             return;
         }
-        
+
         HttpServletRequest httpRequest = (HttpServletRequest) aRequest;
         String signature = httpRequest.getHeader(HEADER_X_HUMAN_SIGNATURE);
 
         if (signature == null) {
-            aChain.doFilter(aRequest, aResponse);
-            return;
+            throw new ServletException("Missing signature header [" + HEADER_X_HUMAN_SIGNATURE
+                    + "]. Headers found: " + Collections.list(httpRequest.getHeaderNames()));
+            // aChain.doFilter(aRequest, aResponse);
+            // return;
         }
 
         HttpServletRequest wrappedRequest = new BufferingHttpServletRequestWrapper(
                 (HttpServletRequest) aRequest);
 
         validateSignature(signature, toByteArray(wrappedRequest.getInputStream()));
+        
+        SecurityContextHolder.getContext()
+                .setAuthentication(new PreAuthenticatedAuthenticationToken("HumanProtocol", null,
+                        asList(new SimpleGrantedAuthority(ROLE_ADMIN.toString()))));
+
+//        setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+//                SecurityContextHolder.getContext());
 
         wrappedRequest.setAttribute(ATTR_SIGNATURE_VALID, true);
-        
+
         aChain.doFilter(wrappedRequest, aResponse);
     }
 
     /**
-     * Validates the payload against the given base64 signature.
+     * Validates the payload against the given hex-encoded signature.
      */
     private void validateSignature(String aSignature, byte[] aPayload)
         throws ServletException, IOException
     {
         try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(secretKey, "HmacSHA256"));
-            byte[] hmacSha256 = mac.doFinal(aPayload);
-            if (!Objects.isEqual(encodeBase64String(hmacSha256), aSignature)) {
+            String expected = generateHexSignature(humanApiKey, aPayload);
+            if (!Objects.isEqual(expected, aSignature)) {
+                log.warn("Invalid signature. Expected [{}] but got [{}]. {} byte message", expected,
+                        aSignature, aPayload.length);
                 throw new ServletException("Invalid signature");
             }
         }

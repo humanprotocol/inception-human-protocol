@@ -120,7 +120,7 @@ public class HumanProtocolProjectInitializer
     @Override
     public void configure(Project aProject) throws IOException
     {
-        initializeProjectRoles(aProject);
+        // initializeProjectRoles(aProject);
         
         initializeProjectDescription(aProject);
 

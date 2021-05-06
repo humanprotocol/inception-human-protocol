@@ -16,17 +16,27 @@
  */
 package io.github.reckart.inception.humanprotocol.config;
 
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.UUID_PATTERN;
+
+import javax.validation.constraints.Pattern;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
 @ConfigurationProperties("human-protocol")
+@Validated
 public class HumanProtocolPropertiesImpl
     implements HumanProtocolProperties
 {
     private int exchangeId;
+    
+    @Pattern(regexp = UUID_PATTERN, message = "Invalid UUID")
     private String exchangeKey;
     
-    private String metaApiUrl;
-    private String metaApiKey;
+    private String humanApiUrl;
+    
+    @Pattern(regexp = UUID_PATTERN, message = "Invalid UUID")
+    private String humanApiKey;
     
     private String s3Username;
     private String s3Password;
@@ -56,25 +66,25 @@ public class HumanProtocolPropertiesImpl
     }
 
     @Override
-    public String getMetaApiUrl()
+    public String getHumanApiUrl()
     {
-        return metaApiUrl;
+        return humanApiUrl;
     }
 
-    public void setMetaApiUrl(String aMetaApiUrl)
+    public void setHumanApiUrl(String aUrl)
     {
-        metaApiUrl = aMetaApiUrl;
+        humanApiUrl = aUrl;
     }
 
     @Override
-    public String getMetaApiKey()
+    public String getHumanApiKey()
     {
-        return metaApiKey;
+        return humanApiKey;
     }
 
-    public void setMetaApiKey(String aKey)
+    public void setHumanApiKey(String aKey)
     {
-        metaApiKey = aKey;
+        humanApiKey = aKey;
     }
 
     @Override
