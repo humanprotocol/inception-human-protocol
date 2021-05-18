@@ -174,6 +174,7 @@ public class HumanProtocolProjectInitializer
         invite.setUserIdPlaceholder("Ethereum walled address");
         invite.setAskForEMail(MANDATORY);
         invite.setDisableOnAnnotationComplete(true);
+        invite.setMaxAnnotatorCount(documentService.listSourceDocuments(aProject).size());
         inviteService.writeProjectInvite(invite);
     }
 

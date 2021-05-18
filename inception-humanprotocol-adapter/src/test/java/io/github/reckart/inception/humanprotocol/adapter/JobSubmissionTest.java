@@ -98,6 +98,7 @@ import de.tudarmstadt.ukp.clarin.webanno.security.model.User;
 import de.tudarmstadt.ukp.clarin.webanno.support.logging.LoggingFilter;
 import de.tudarmstadt.ukp.inception.sharing.InviteService;
 import de.tudarmstadt.ukp.inception.sharing.config.InviteServicePropertiesImpl;
+import de.tudarmstadt.ukp.inception.sharing.model.ProjectInvite;
 import io.github.reckart.inception.humanprotocol.HumanProtocolServiceImpl;
 import io.github.reckart.inception.humanprotocol.config.HumanProtocolPropertiesImpl;
 import io.github.reckart.inception.humanprotocol.messages.InviteLinkNotification;
@@ -246,6 +247,7 @@ public class JobSubmissionTest
         assertThat(documentService.listSourceDocuments(project))
             .as("All documents imported")
             .hasSize(manifest.getTaskdata().size());
+        
 
         // Validate project has imported data to be labeled (manifest + 2 documents)
         assertThat(metaApiServer.takeRequest().getPath()).as("Data loaded").isEqualTo("/data");
@@ -264,13 +266,16 @@ public class JobSubmissionTest
                 .isEqualTo(APPLICATION_JSON_VALUE);
         InviteLinkNotification notification = fromJsonString(InviteLinkNotification.class,
                 serializedNotification);
+        
+        ProjectInvite invite = inviteService.readProjectInvite(project);
         assertThat(notification.getInviteLink()).startsWith(inviteProperties.getInviteBaseUrl());
         assertThat(notification.getInviteLink()).contains("/p/1/join-project");
-        assertThat(notification.getInviteLink())
-                .endsWith(inviteService.readProjectInvite(project).getInviteId());
+        assertThat(notification.getInviteLink()).endsWith(invite.getInviteId());
         assertThat(notification.getNetworkId()).isEqualTo(jobRequest.getNetworkId());
         assertThat(notification.getJobAddress()).isEqualTo(jobRequest.getJobAddress());
         assertThat(notification.getExchangeId()).isEqualTo(hmtProperties.getExchangeId());
+        assertThat(invite.getMaxAnnotatorCount())
+                .isEqualTo(documentService.listSourceDocuments(project).size());
     }
     
     private JobManifest generateJobManifestAndEnqueueDataResponses(String... aDocuments)
