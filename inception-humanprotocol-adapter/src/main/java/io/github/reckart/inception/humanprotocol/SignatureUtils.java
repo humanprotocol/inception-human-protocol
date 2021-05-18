@@ -16,8 +16,9 @@
  */
 package io.github.reckart.inception.humanprotocol;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
@@ -35,7 +36,7 @@ public class SignatureUtils
     public static String generateHexSignature(String aSecretKey, String aPayload)
         throws NoSuchAlgorithmException, InvalidKeyException
     {
-        return generateHexSignature(UUID.fromString(aSecretKey), aPayload.getBytes(StandardCharsets.UTF_8));
+        return generateHexSignature(UUID.fromString(aSecretKey), aPayload.getBytes(UTF_8));
     }
 
     public static String generateHexSignature(String aSecretKey, byte[] aPayload)
@@ -47,7 +48,7 @@ public class SignatureUtils
     public static String generateHexSignature(UUID aSecretKey, String aPayload)
         throws NoSuchAlgorithmException, InvalidKeyException
     {
-        return generateHexSignature(uuidToBytes(aSecretKey), aPayload.getBytes(StandardCharsets.UTF_8));
+        return generateHexSignature(uuidToBytes(aSecretKey), aPayload.getBytes(UTF_8));
     }
 
     public static String generateHexSignature(UUID aSecretKey, byte[] aPayload)

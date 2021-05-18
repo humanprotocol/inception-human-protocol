@@ -27,7 +27,6 @@ import static io.github.reckart.inception.humanprotocol.HumanProtocolController.
 import static io.github.reckart.inception.humanprotocol.HumanProtocolController.SUBMIT_JOB;
 import static io.github.reckart.inception.humanprotocol.JobManifestUtils.loadManifest;
 import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateHexSignature;
-import static java.util.Arrays.asList;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.contentOf;
@@ -39,28 +38,23 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.io.File;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
-import javax.persistence.EntityManager;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -68,40 +62,26 @@ import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfig
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.util.FileSystemUtils;
 import org.springframework.web.context.WebApplicationContext;
 
-import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
-import de.tudarmstadt.ukp.clarin.webanno.api.CasStorageService;
-import de.tudarmstadt.ukp.clarin.webanno.api.DocumentImportExportService;
-import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
-import de.tudarmstadt.ukp.clarin.webanno.api.annotation.feature.FeatureSupportRegistry;
-import de.tudarmstadt.ukp.clarin.webanno.api.annotation.feature.FeatureSupportRegistryImpl;
-import de.tudarmstadt.ukp.clarin.webanno.api.annotation.layer.ChainLayerSupport;
-import de.tudarmstadt.ukp.clarin.webanno.api.annotation.layer.LayerSupportRegistry;
-import de.tudarmstadt.ukp.clarin.webanno.api.annotation.layer.LayerSupportRegistryImpl;
-import de.tudarmstadt.ukp.clarin.webanno.api.annotation.layer.RelationLayerSupport;
-import de.tudarmstadt.ukp.clarin.webanno.api.annotation.layer.SpanLayerSupport;
+import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryProperties;
-import de.tudarmstadt.ukp.clarin.webanno.api.dao.AnnotationSchemaServiceImpl;
-import de.tudarmstadt.ukp.clarin.webanno.api.dao.DocumentImportExportServiceImpl;
-import de.tudarmstadt.ukp.clarin.webanno.api.dao.DocumentServiceImpl;
+import de.tudarmstadt.ukp.clarin.webanno.api.dao.annotationservice.config.AnnotationSchemaServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.casstorage.OpenCasStorageSessionForRequestFilter;
-import de.tudarmstadt.ukp.clarin.webanno.api.dao.docimexport.config.DocumentImportExportServicePropertiesImpl;
-import de.tudarmstadt.ukp.clarin.webanno.api.dao.export.ProjectExportServiceImpl;
-import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportService;
-import de.tudarmstadt.ukp.clarin.webanno.api.project.ProjectInitializer;
+import de.tudarmstadt.ukp.clarin.webanno.api.dao.casstorage.config.CasStorageServiceAutoConfiguration;
+import de.tudarmstadt.ukp.clarin.webanno.api.dao.docimexport.config.DocumentImportExportServiceAutoConfiguration;
+import de.tudarmstadt.ukp.clarin.webanno.api.dao.documentservice.config.DocumentServiceAutoConfiguration;
+import de.tudarmstadt.ukp.clarin.webanno.api.dao.export.config.ProjectExportServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
-import de.tudarmstadt.ukp.clarin.webanno.project.ProjectServiceImpl;
-import de.tudarmstadt.ukp.clarin.webanno.project.initializers.TokenLayerInitializer;
+import de.tudarmstadt.ukp.clarin.webanno.project.config.ProjectServiceAutoConfiguration;
+import de.tudarmstadt.ukp.clarin.webanno.project.initializers.config.ProjectInitializersAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.security.UserDao;
-import de.tudarmstadt.ukp.clarin.webanno.security.UserDaoImpl;
+import de.tudarmstadt.ukp.clarin.webanno.security.config.SecurityAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.security.model.Role;
 import de.tudarmstadt.ukp.clarin.webanno.security.model.User;
-import de.tudarmstadt.ukp.clarin.webanno.support.ApplicationContextProvider;
-import de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging;
 import de.tudarmstadt.ukp.clarin.webanno.support.logging.LoggingFilter;
-import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
 import de.tudarmstadt.ukp.inception.sharing.InviteService;
 import de.tudarmstadt.ukp.inception.sharing.config.InviteServicePropertiesImpl;
 import io.github.reckart.inception.humanprotocol.HumanProtocolServiceImpl;
@@ -117,7 +97,8 @@ import mockwebserver3.RecordedRequest;
 @ExtendWith(SpringExtension.class)
 @EnableAutoConfiguration(exclude = LiquibaseAutoConfiguration.class)
 @SpringBootTest(webEnvironment = MOCK, properties = { //
-        // These properies are required for auto-config, so we need to set them here already
+        // These properties are required for auto-config, so we need to set them here already
+        "repository.path=" + JobSubmissionTest.TEST_OUTPUT_FOLDER, //
         "human-protocol.s3Region=us-west-2", //
         "human-protocol.s3Username=dummy", //
         "human-protocol.s3Password=dummy", //
@@ -125,6 +106,16 @@ import mockwebserver3.RecordedRequest;
         "workload.dynamic.enabled=true", //
         "sharing.invites.enabled=true" })
 @EnableWebSecurity
+@Import({ //
+        ProjectExportServiceAutoConfiguration.class, //
+        DocumentServiceAutoConfiguration.class, //
+        DocumentImportExportServiceAutoConfiguration.class, //
+        ProjectServiceAutoConfiguration.class, //
+        ProjectInitializersAutoConfiguration.class, //
+        CasStorageServiceAutoConfiguration.class, //
+        RepositoryAutoConfiguration.class, //
+        AnnotationSchemaServiceAutoConfiguration.class, //
+        SecurityAutoConfiguration.class })
 @EntityScan({ //
         "de.tudarmstadt.ukp.inception", //
         "de.tudarmstadt.ukp.clarin.webanno.model", //
@@ -132,7 +123,7 @@ import mockwebserver3.RecordedRequest;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 public class JobSubmissionTest
 {
-    static @TempDir File repositoryDir;
+    static final String TEST_OUTPUT_FOLDER = "target/test-output/JobSubmissionTest";
 
     private static final int EXCHANGE_ID = 4242;
     private static final String EXCHANGE_KEY = "de85eb7e-aea9-11eb-8529-0242ac130003";
@@ -156,18 +147,22 @@ public class JobSubmissionTest
     // in the DB and clean the test repository once!
     private static boolean initialized = false;
 
+    @BeforeAll
+    public static void setupClass()
+    {
+        FileSystemUtils.deleteRecursively(new File(TEST_OUTPUT_FOLDER));
+    }
+
     @BeforeEach
     public void setup() throws Exception
     {
-        repositoryProperties.setPath(repositoryDir);
-        MDC.put(Logging.KEY_REPOSITORY_PATH, repositoryProperties.getPath().toString());
         MDC.put(KEY_USERNAME, "USERNAME");
 
         metaApiServer = new MockWebServer();
         metaApiServer.start();
 
         inviteProperties.setInviteBaseUrl("http://nevermind:8080/inception");
-        
+
         hmtProperties.setHumanApiUrl(metaApiServer.url("/api").toString());
         hmtProperties.setExchangeId(EXCHANGE_ID);
         hmtProperties.setExchangeKey(EXCHANGE_KEY);
@@ -203,14 +198,14 @@ public class JobSubmissionTest
 
         // First expected request fetches the data
         JobManifest manifest = loadManifest(manifestFile);
-        metaApiServer.enqueue(new MockResponse().setResponseCode(200).setBody(contentOf(manifestFile)));
+        metaApiServer
+                .enqueue(new MockResponse().setResponseCode(200).setBody(contentOf(manifestFile)));
 
         // Second expected request posts the invite link information
         metaApiServer.enqueue(new MockResponse().setResponseCode(200));
 
         assertThat(projectService.listProjects()) //
-                .as("Starting with emtpy database (no projects)")
-                .hasSize(0);
+                .as("Starting with emtpy database (no projects)").hasSize(0);
 
         JobRequest jobRequest = createJobRequest();
         postJob(createJobRequest());
@@ -281,93 +276,9 @@ public class JobSubmissionTest
         // @formatter:on
     }
 
-    @Configuration
+    @SpringBootConfiguration
     public static class TestContext
     {
-        private @Autowired ApplicationEventPublisher applicationEventPublisher;
-        private @Autowired EntityManager entityManager;
-
-        @Bean
-        public ProjectService projectService(UserDao aUserRepository,
-                RepositoryProperties aRepositoryProperties,
-                @Lazy @Autowired(required = false) List<ProjectInitializer> aInitializerProxy)
-        {
-            return new ProjectServiceImpl(aUserRepository, applicationEventPublisher,
-                    aRepositoryProperties, aInitializerProxy);
-        }
-
-        @Bean
-        public UserDao userRepository()
-        {
-            return new UserDaoImpl();
-        }
-
-        @Bean
-        public TokenLayerInitializer tokenLayerInitializer(
-                AnnotationSchemaService aAnnotationSchemaService)
-        {
-            return new TokenLayerInitializer(aAnnotationSchemaService);
-        }
-
-        @Bean
-        public DocumentService documentService(RepositoryProperties aRepositoryProperties,
-                CasStorageService aCasStorageService,
-                DocumentImportExportService aImportExportService, ProjectService aProjectService)
-        {
-            return new DocumentServiceImpl(aRepositoryProperties, aCasStorageService,
-                    aImportExportService, aProjectService, applicationEventPublisher,
-                    entityManager);
-        }
-
-        @Bean
-        public AnnotationSchemaService annotationService(LayerSupportRegistry aLayerSupportRegistry)
-        {
-            return new AnnotationSchemaServiceImpl(aLayerSupportRegistry, featureSupportRegistry(),
-                    entityManager);
-        }
-
-        @Bean
-        public FeatureSupportRegistry featureSupportRegistry()
-        {
-            return new FeatureSupportRegistryImpl(Collections.emptyList());
-        }
-
-        @Bean
-        public DocumentImportExportService importExportService(
-                RepositoryProperties aRepositoryProperties, CasStorageService aCasStorageService,
-                AnnotationSchemaService aAnnotationSchemaService)
-        {
-            return new DocumentImportExportServiceImpl(aRepositoryProperties,
-                    asList(new TextFormatSupport()), aCasStorageService, aAnnotationSchemaService,
-                    new DocumentImportExportServicePropertiesImpl());
-        }
-
-        @Bean
-        public ProjectExportService exportService(ProjectService aProjectService)
-        {
-            return new ProjectExportServiceImpl(null, null, aProjectService);
-        }
-
-        @Bean
-        public RepositoryProperties repositoryProperties()
-        {
-            return new RepositoryProperties();
-        }
-
-        @Bean
-        public ApplicationContextProvider contextProvider()
-        {
-            return new ApplicationContextProvider();
-        }
-
-        @Bean
-        public LayerSupportRegistry layerSupportRegistry(
-                FeatureSupportRegistry aFeatureSupportRegistry)
-        {
-            return new LayerSupportRegistryImpl(
-                    asList(new SpanLayerSupport(aFeatureSupportRegistry, null, null),
-                            new RelationLayerSupport(aFeatureSupportRegistry, null, null),
-                            new ChainLayerSupport(aFeatureSupportRegistry, null, null)));
-        }
+        // All handled by auto-config
     }
 }
