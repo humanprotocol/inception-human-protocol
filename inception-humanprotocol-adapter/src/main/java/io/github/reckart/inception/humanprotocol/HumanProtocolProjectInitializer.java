@@ -27,6 +27,7 @@ import static de.tudarmstadt.ukp.inception.sharing.model.Mandatoriness.MANDATORY
 import static java.io.File.createTempFile;
 import static java.lang.Boolean.TRUE;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.time.temporal.ChronoUnit.HOURS;
 import static java.util.Arrays.asList;
 import static java.util.Calendar.MONTH;
 import static org.apache.commons.io.FilenameUtils.getExtension;
@@ -42,6 +43,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -57,6 +59,7 @@ import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.project.ProjectInitializer;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnchoringMode;
+import de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocumentState;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnnotationFeature;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnnotationLayer;
 import de.tudarmstadt.ukp.clarin.webanno.model.OverlapMode;
@@ -223,6 +226,8 @@ public class HumanProtocolProjectInitializer
         WorkloadManager mgr = workloadService.loadOrCreateWorkloadManagerConfiguration(aProject);
         mgr.setType(dynamicWorkload.getId());
         DynamicWorkloadTraits traits = dynamicWorkload.readTraits(mgr);
+        traits.setAbandonationTimeout(Duration.of(24, HOURS));
+        traits.setAbandonationState(AnnotationDocumentState.IGNORE);
         traits.setDefaultNumberOfAnnotations(1);
         workloadService.saveConfiguration(mgr);
     }
