@@ -20,17 +20,25 @@ import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.fromJsonString;
 import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.toJsonString;
 import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.toPrettyJsonString;
 import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_USERNAME;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_TOKENS;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_EXCHANGE_SIGNATURE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_HUMAN_SIGNATURE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.INVITE_LINK_ENDPOINT;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.OVERLAP_NONE;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_ANCHORING;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_CROSS_SENENCE;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_OVERLAP;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_VERSION;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.TASK_TYPE_SPAN_SELECT;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolController.API_BASE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolController.SUBMIT_JOB;
-import static io.github.reckart.inception.humanprotocol.JobManifestUtils.loadManifest;
 import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateHexSignature;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.contentOf;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.MOCK;
+import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -38,8 +46,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.io.File;
+import java.io.IOException;
+import java.util.Deque;
+import java.util.LinkedList;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
+import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,7 +69,6 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
@@ -65,6 +78,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.util.FileSystemUtils;
 import org.springframework.web.context.WebApplicationContext;
 
+import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryProperties;
@@ -88,7 +102,10 @@ import io.github.reckart.inception.humanprotocol.HumanProtocolServiceImpl;
 import io.github.reckart.inception.humanprotocol.config.HumanProtocolPropertiesImpl;
 import io.github.reckart.inception.humanprotocol.messages.InviteLinkNotification;
 import io.github.reckart.inception.humanprotocol.messages.JobRequest;
+import io.github.reckart.inception.humanprotocol.model.InternationalizedStrings;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
+import io.github.reckart.inception.humanprotocol.model.TaskData;
+import io.github.reckart.inception.humanprotocol.model.TaskDataItem;
 import io.github.reckart.inception.humanprotocol.security.HumanSignatureValidationFilter;
 import mockwebserver3.MockResponse;
 import mockwebserver3.MockWebServer;
@@ -137,6 +154,7 @@ public class JobSubmissionTest
     private @Autowired HumanProtocolPropertiesImpl hmtProperties;
     private @Autowired InviteService inviteService;
     private @Autowired InviteServicePropertiesImpl inviteProperties;
+    private @Autowired DocumentService documentService;
 
     private MockMvc mvc;
     private MockWebServer metaApiServer;
@@ -194,14 +212,12 @@ public class JobSubmissionTest
     @Test
     public void thatProjectCreationFromJobAndInviteLinkNotification() throws Exception
     {
-        File manifestFile = new File("src/test/resources/manifest/example-remote-data.json");
-
-        // First expected request fetches the data
-        JobManifest manifest = loadManifest(manifestFile);
-        metaApiServer
-                .enqueue(new MockResponse().setResponseCode(200).setBody(contentOf(manifestFile)));
-
-        // Second expected request posts the invite link information
+        // Expected request(s) for the manifest and for fetching the task data
+        JobManifest manifest = generateJobManifestAndEnqueueDataResponses( //
+                "This is document 1.", //
+                "This is document 2.");
+        
+         // Expect request posting the invite link information
         metaApiServer.enqueue(new MockResponse().setResponseCode(200));
 
         assertThat(projectService.listProjects()) //
@@ -211,11 +227,11 @@ public class JobSubmissionTest
         postJob(createJobRequest());
 
         // Validate project has been properly created
-        assertThat(projectService.existsProject(manifest.getJobId())) //
-                .as("Project has been created from the job manifest using the job-ID as name")
+        assertThat(projectService.existsProject(jobRequest.getJobAddress())) //
+                .as("Project has been created from the job manifest using the job address as name")
                 .isTrue();
 
-        Project project = projectService.getProject(manifest.getJobId());
+        Project project = projectService.getProject(jobRequest.getJobAddress());
         assertThat(project) //
                 .as("Project description has been set from manifest")
                 .extracting(Project::getDescription).isNotNull();
@@ -223,12 +239,18 @@ public class JobSubmissionTest
         Optional<JobManifest> storedManifest = hmtService.readJobManifest(project);
         assertThat(storedManifest).isPresent();
         assertThat(contentOf(hmtService.getManifestFile(project).toFile()))
-                .isEqualTo(contentOf(manifestFile));
+                .isEqualTo(toPrettyJsonString(manifest));
         assertThatJson(toPrettyJsonString(hmtService.readJobManifest(project).get()))
                 .isEqualTo(toPrettyJsonString(manifest));
+        
+        assertThat(documentService.listSourceDocuments(project))
+            .as("All documents imported")
+            .hasSize(manifest.getTaskdata().size());
 
-        // Validate project has imported data to be labeled
+        // Validate project has imported data to be labeled (manifest + 2 documents)
         assertThat(metaApiServer.takeRequest().getPath()).as("Data loaded").isEqualTo("/data");
+        assertThat(metaApiServer.takeRequest().getPath()).as("Data loaded").startsWith("/data/");
+        assertThat(metaApiServer.takeRequest().getPath()).as("Data loaded").startsWith("/data/");
 
         // Validate invite link notification
         RecordedRequest linkNotificationRequest = metaApiServer.takeRequest();
@@ -238,8 +260,8 @@ public class JobSubmissionTest
         String serializedNotification = linkNotificationRequest.getBody().readUtf8();
         assertThat(linkNotificationRequest.getHeader(HEADER_X_EXCHANGE_SIGNATURE))
                 .isEqualTo(generateHexSignature(EXCHANGE_KEY, serializedNotification));
-        assertThat(linkNotificationRequest.getHeader(HttpHeaders.CONTENT_TYPE))
-                .isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+        assertThat(linkNotificationRequest.getHeader(CONTENT_TYPE))
+                .isEqualTo(APPLICATION_JSON_VALUE);
         InviteLinkNotification notification = fromJsonString(InviteLinkNotification.class,
                 serializedNotification);
         assertThat(notification.getInviteLink()).startsWith(inviteProperties.getInviteBaseUrl());
@@ -249,6 +271,43 @@ public class JobSubmissionTest
         assertThat(notification.getNetworkId()).isEqualTo(jobRequest.getNetworkId());
         assertThat(notification.getJobAddress()).isEqualTo(jobRequest.getJobAddress());
         assertThat(notification.getExchangeId()).isEqualTo(hmtProperties.getExchangeId());
+    }
+    
+    private JobManifest generateJobManifestAndEnqueueDataResponses(String... aDocuments)
+        throws IOException
+    {
+        Deque<MockResponse> responses = new LinkedList<>();
+        
+        TaskData taskData = new TaskData();
+        for (String document : aDocuments) {
+            responses.add(new MockResponse().setResponseCode(200).setBody(document));
+            
+            TaskDataItem item = new TaskDataItem();
+            item.setTaskKey(UUID.randomUUID().toString());
+            item.setDatapointUri(metaApiServer.url("/data/"+item.getTaskKey()).toString());
+            item.setDatapointHash(DigestUtils.sha256Hex(document));
+            taskData.add(item);
+        }
+        
+        JobManifest manifest = new JobManifest();
+        manifest.setJobId(UUID.randomUUID().toString());
+        manifest.setTaskdata(taskData);
+        manifest.setRequesterQuestion(new InternationalizedStrings() // 
+                .withString("en", "Identify the rabbit."));
+        manifest.setRequestType(TASK_TYPE_SPAN_SELECT);
+        manifest.setRequestConfig(Map.of( //
+                REQUEST_CONFIG_KEY_VERSION, 0, //
+                REQUEST_CONFIG_KEY_ANCHORING, ANCHORING_TOKENS, //
+                REQUEST_CONFIG_KEY_OVERLAP, OVERLAP_NONE, //
+                REQUEST_CONFIG_KEY_CROSS_SENENCE, false));
+        
+        // This is actually the first request that needs to be served
+        responses.push(
+                new MockResponse().setResponseCode(200).setBody(toPrettyJsonString(manifest)));
+        
+        responses.forEach(metaApiServer::enqueue);
+        
+        return manifest;
     }
 
     private JobRequest createJobRequest()

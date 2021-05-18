@@ -29,7 +29,7 @@ public class JobManifest
     private String jobId;
     
     private InternationalizedStrings requesterQuestion;
-    private String requesterDescription;    
+    private String requesterDescription;
     private int requesterMinRepeats;
     private int requesterMaxRepeats;
     private double requesterAccuracyTarget;
@@ -43,6 +43,7 @@ public class JobManifest
     private Map<String, Object> requestConfig;
     
     private String taskdataUri;
+    private TaskData taskdata;
 
     public void setJobId(String aJobId)
     {
@@ -143,6 +144,16 @@ public class JobManifest
     public void setTaskdataUri(String aTaskdataUri)
     {
         taskdataUri = aTaskdataUri;
+    }
+    
+    public void setTaskdata(TaskData aTaskdata)
+    {
+        taskdata = aTaskdata;
+    }
+    
+    public TaskData getTaskdata()
+    {
+        return taskdata;
     }
 
     public String getRequestType()

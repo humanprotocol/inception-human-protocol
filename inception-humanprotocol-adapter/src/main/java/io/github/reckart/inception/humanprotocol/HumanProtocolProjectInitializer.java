@@ -24,12 +24,22 @@ import static de.tudarmstadt.ukp.clarin.webanno.model.OverlapMode.NO_OVERLAP;
 import static de.tudarmstadt.ukp.clarin.webanno.model.PermissionLevel.CURATOR;
 import static de.tudarmstadt.ukp.clarin.webanno.model.PermissionLevel.MANAGER;
 import static de.tudarmstadt.ukp.inception.sharing.model.Mandatoriness.MANDATORY;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_SENTENCES;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_TOKENS;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.OVERLAP_ANY;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.OVERLAP_NONE;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_ANCHORING;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_CROSS_SENENCE;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_OVERLAP;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.TASK_TYPE_SPAN_SELECT;
 import static java.io.File.createTempFile;
 import static java.lang.Boolean.TRUE;
+import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.temporal.ChronoUnit.HOURS;
 import static java.util.Arrays.asList;
 import static java.util.Calendar.MONTH;
+import static org.apache.commons.codec.digest.DigestUtils.sha256Hex;
 import static org.apache.commons.io.FilenameUtils.getExtension;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.uima.cas.CAS.TYPE_NAME_STRING;
@@ -49,9 +59,12 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Optional;
 
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.Validate;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
@@ -81,11 +94,12 @@ import io.github.reckart.inception.humanprotocol.model.InternationalizedStrings;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
 import io.github.reckart.inception.humanprotocol.model.TaskData;
 import io.github.reckart.inception.humanprotocol.model.TaskDataItem;
+import software.amazon.awssdk.utils.StringUtils;
 
 public class HumanProtocolProjectInitializer
     implements ProjectInitializer
 {
-//    private final Logger log = LoggerFactory.getLogger(getClass());
+    // private final Logger log = LoggerFactory.getLogger(getClass());
 
     private @Autowired AnnotationSchemaService schemaService;
     private @Autowired DocumentService documentService;
@@ -94,7 +108,7 @@ public class HumanProtocolProjectInitializer
     private @Autowired ProjectService projectService;
     private @Autowired UserDao userService;
     private @Autowired InviteService inviteService;
-    
+
     private final JobManifest manifest;
 
     public HumanProtocolProjectInitializer(JobManifest aManifest)
@@ -124,15 +138,15 @@ public class HumanProtocolProjectInitializer
     public void configure(Project aProject) throws IOException
     {
         // initializeProjectRoles(aProject);
-        
+
         initializeProjectDescription(aProject);
 
         initializeTask(aProject);
 
         initializeTaskData(aProject);
-        
+
         initializeWorkloadManagement(aProject);
-        
+
         initializeAnnotatorAccess(aProject);
     }
 
@@ -141,24 +155,22 @@ public class HumanProtocolProjectInitializer
         Date expirationDate;
         if (manifest.getExpirationDate() > 0) {
             expirationDate = new Date(manifest.getExpirationDate());
-        } else {
+        }
+        else {
             // By default, we use six months until the link expires
             Calendar expirationCalendar = Calendar.getInstance();
             expirationCalendar.add(MONTH, 6);
             expirationDate = expirationCalendar.getTime();
         }
-        
+
         inviteService.generateInviteWithExpirationDate(aProject, expirationDate);
-        
+
         ProjectInvite invite = inviteService.readProjectInvite(aProject);
         invite.setGuestAccessible(true);
-        invite.setInvitationText(String.join("\n",
-                "## Welcome!",
-                "",
+        invite.setInvitationText(String.join("\n", "## Welcome!", "",
                 "To earn credit for your annotations, please enter your Ethereum "
-                + "wallet address as user ID below.",
-                "",
-                "Please also provide your eMail address."));
+                        + "wallet address as user ID below.",
+                "", "Please also provide your eMail address."));
         invite.setUserIdPlaceholder("Ethereum walled address");
         invite.setAskForEMail(MANDATORY);
         invite.setDisableOnAnnotationComplete(true);
@@ -173,11 +185,17 @@ public class HumanProtocolProjectInitializer
 
     private void initializeTaskData(Project aProject) throws IOException
     {
-        if (manifest.getTaskdataUri() == null) {
+        if (manifest.getTaskdataUri() == null && manifest.getTaskdata() == null) {
             return;
         }
-        
-        TaskData taskData = JobManifestUtils.loadTaskData(URI.create(manifest.getTaskdataUri()));
+
+        TaskData taskData;
+        if (manifest.getTaskdataUri() != null) {
+            taskData = JobManifestUtils.loadTaskData(URI.create(manifest.getTaskdataUri()));
+        }
+        else {
+            taskData = manifest.getTaskdata();
+        }
 
         HttpClient client = HttpClient.newHttpClient();
         for (TaskDataItem item : taskData) {
@@ -186,10 +204,20 @@ public class HumanProtocolProjectInitializer
             try {
                 HttpRequest request = HttpRequest.newBuilder().uri(datapointUri).build();
                 HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
+
+                String actualDatapointHash = sha256Hex(response.body());
+                if (!actualDatapointHash.equals(item.getDatapointHash())) {
+                    throw new IOException(format(
+                            "Actual data hash for task key [%s] does not "
+                                    + "match expected hash. Expected: [%s] Actual: [%s]",
+                            item.getTaskKey(), item.getDatapointHash(), actualDatapointHash));
+                }
+
                 FileUtils.write(tmpFile, response.body(), UTF_8);
 
-                SourceDocument sourceDocument = new SourceDocument(FilenameUtils
-                        .getName(datapointUri.getPath()), aProject, TextFormatSupport.ID);
+                SourceDocument sourceDocument = new SourceDocument(
+                        FilenameUtils.getName(datapointUri.getPath()), aProject,
+                        TextFormatSupport.ID);
                 documentService.createSourceDocument(sourceDocument);
                 try (InputStream is = new FileInputStream(tmpFile)) {
                     documentService.uploadSourceDocument(is, sourceDocument);
@@ -211,8 +239,10 @@ public class HumanProtocolProjectInitializer
 
     private void initializeTask(Project aProject)
     {
+        Validate.notNull(manifest.getRequestType(), "Manifest must specify a request type");
+
         switch (manifest.getRequestType()) {
-        case "span_select":
+        case TASK_TYPE_SPAN_SELECT:
             initializeSpanSelectionTask(aProject);
             break;
         default:
@@ -220,7 +250,7 @@ public class HumanProtocolProjectInitializer
                     "Unsupported request type [" + manifest.getRequestType() + "]");
         }
     }
-    
+
     private void initializeWorkloadManagement(Project aProject)
     {
         WorkloadManager mgr = workloadService.loadOrCreateWorkloadManagerConfiguration(aProject);
@@ -231,17 +261,21 @@ public class HumanProtocolProjectInitializer
         traits.setDefaultNumberOfAnnotations(1);
         workloadService.saveConfiguration(mgr);
     }
- 
+
     private void initializeSpanSelectionTask(Project aProject)
     {
-        TagSet tagset = initializeTagset(aProject);
+        Validate.notNull(manifest.getRequestConfig(),
+                "Manifest must contain a request configuration");
+
+        Optional<TagSet> tagset = initializeTagset(aProject);
 
         AnchoringMode anchoringMode;
-        Object anchoringModeValue = manifest.getRequestConfig().getOrDefault("anchoring", "tokens");
-        if ("tokens".equals(anchoringModeValue)) {
+        Object anchoringModeValue = manifest.getRequestConfig()
+                .getOrDefault(REQUEST_CONFIG_KEY_ANCHORING, ANCHORING_TOKENS);
+        if (ANCHORING_TOKENS.equals(anchoringModeValue)) {
             anchoringMode = TOKENS;
         }
-        else if ("sentences".equals(anchoringModeValue)) {
+        else if (ANCHORING_SENTENCES.equals(anchoringModeValue)) {
             anchoringMode = SENTENCES;
         }
         else {
@@ -249,11 +283,12 @@ public class HumanProtocolProjectInitializer
         }
 
         OverlapMode overlapMode;
-        Object overlapModeValue = manifest.getRequestConfig().getOrDefault("overlap", "none");
-        if ("none".equals(overlapModeValue)) {
+        Object overlapModeValue = manifest.getRequestConfig()
+                .getOrDefault(REQUEST_CONFIG_KEY_OVERLAP, OVERLAP_NONE);
+        if (OVERLAP_NONE.equals(overlapModeValue)) {
             overlapMode = NO_OVERLAP;
         }
-        else if ("any".equals(overlapModeValue)) {
+        else if (OVERLAP_ANY.equals(overlapModeValue)) {
             overlapMode = ANY_OVERLAP;
         }
         else {
@@ -261,8 +296,8 @@ public class HumanProtocolProjectInitializer
         }
 
         boolean crossSentence = false;
-        Object crossSentenceValue = manifest.getRequestConfig().getOrDefault("crossSentence",
-                false);
+        Object crossSentenceValue = manifest.getRequestConfig()
+                .getOrDefault(REQUEST_CONFIG_KEY_CROSS_SENENCE, false);
         if (TRUE.equals(crossSentenceValue)) {
             crossSentence = true;
         }
@@ -274,7 +309,7 @@ public class HumanProtocolProjectInitializer
 
         AnnotationFeature stringFeature = new AnnotationFeature(aProject, spanLayer, "value",
                 "Value", TYPE_NAME_STRING);
-        stringFeature.setTagset(tagset);
+        tagset.ifPresent(stringFeature::setTagset);
         schemaService.createFeature(stringFeature);
     }
 
@@ -297,8 +332,12 @@ public class HumanProtocolProjectInitializer
         aProject.setDescription(description.toString());
     }
 
-    private TagSet initializeTagset(Project aProject)
+    private Optional<TagSet> initializeTagset(Project aProject)
     {
+        if (MapUtils.isEmpty(manifest.getRequesterRestrictedAnswerSet())) {
+            return Optional.empty();
+        }
+
         TagSet tagset = new TagSet(aProject, "Tagset");
         tagset.setCreateTag(false);
         schemaService.createTagSet(tagset);
@@ -306,12 +345,15 @@ public class HumanProtocolProjectInitializer
         List<Tag> tags = new ArrayList<>();
         for (Entry<String, InternationalizedStrings> answer : manifest
                 .getRequesterRestrictedAnswerSet().entrySet()) {
-            Tag tag = new Tag(tagset, answer.getKey());
-            tag.setDescription(answer.getValue().get("en"));
+            Tag tag = new Tag(tagset, answer.getKey().trim());
+            String description = answer.getValue().get("en");
+            if (StringUtils.isNotBlank(description)) {
+                tag.setDescription(description);
+            }
             tags.add(tag);
         }
         schemaService.createTags(tags.stream().toArray(Tag[]::new));
 
-        return tagset;
+        return Optional.of(tagset);
     }
 }

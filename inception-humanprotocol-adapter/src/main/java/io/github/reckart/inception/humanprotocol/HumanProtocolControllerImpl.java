@@ -101,7 +101,9 @@ public class HumanProtocolControllerImpl
             }
             
             JobManifest manifest = hmtService.readJobManifest(project).get();
-            project.setDescription(manifest.getRequesterQuestion().get("en"));
+            if (manifest.getRequesterQuestion() != null) {
+                project.setDescription(manifest.getRequesterQuestion().get("en"));
+            }
             projectService.updateProject(project);
     
             HumanProtocolProjectInitializer initializer = new HumanProtocolProjectInitializer(manifest);

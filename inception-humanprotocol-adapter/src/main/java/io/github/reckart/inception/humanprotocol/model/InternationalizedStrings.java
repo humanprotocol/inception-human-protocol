@@ -22,4 +22,8 @@ public class InternationalizedStrings extends LinkedHashMap<String, String>
 {
     private static final long serialVersionUID = -4016926381508621715L;
 
+    public InternationalizedStrings withString(String aLanguage, String aString) {
+        put(aLanguage, aString);
+        return this;
+    }
 }

@@ -27,4 +27,18 @@ public interface HumanProtocolConstants
    String JOB_RESULTS_ENDPOINT = "/exchange/job/results";
    
    String UUID_PATTERN = "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$";
+   
+   String TASK_TYPE_SPAN_SELECT = "span_select";
+   
+   String REQUEST_CONFIG_KEY_CROSS_SENENCE = "crossSenence";
+   String REQUEST_CONFIG_KEY_OVERLAP = "overlap";
+   String REQUEST_CONFIG_KEY_ANCHORING = "anchoring";
+   String REQUEST_CONFIG_KEY_VERSION = "version";
+   
+   String OVERLAP_NONE = "none";
+   String OVERLAP_ANY = "any";
+
+   String ANCHORING_TOKENS = "tokens";
+   String ANCHORING_SENTENCES = "sentences";
+   String ANCHORING_DOCUMENTS = "documents";
 }
