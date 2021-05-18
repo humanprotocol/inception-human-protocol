@@ -71,6 +71,7 @@ import de.tudarmstadt.ukp.clarin.webanno.api.event.ProjectStateChangedEvent;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportException;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportService;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectImportRequest;
+import de.tudarmstadt.ukp.clarin.webanno.curation.storage.config.CurationDocumentServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
 import de.tudarmstadt.ukp.clarin.webanno.project.config.ProjectServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.project.initializers.config.ProjectInitializersAutoConfiguration;
@@ -81,6 +82,7 @@ import de.tudarmstadt.ukp.clarin.webanno.security.model.User;
 import de.tudarmstadt.ukp.clarin.webanno.text.config.TextFormatsAutoConfiguration;
 import de.tudarmstadt.ukp.inception.sharing.config.InviteServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.ui.core.dashboard.config.DashboardAutoConfiguration;
+import de.tudarmstadt.ukp.inception.workload.dynamic.config.DynamicWorkloadManagerAutoConfiguration;
 import io.github.reckart.inception.humanprotocol.HumanProtocolServiceImpl;
 import io.github.reckart.inception.humanprotocol.config.HumanProtocolAutoConfiguration;
 import io.github.reckart.inception.humanprotocol.config.HumanProtocolPropertiesImpl;
@@ -139,8 +141,10 @@ public class ResultsSubmissionTest
                     AnnotationSchemaServiceAutoConfiguration.class.getName(), //
                     ProjectInitializersAutoConfiguration.class.getName(), //
                     CasStorageServiceAutoConfiguration.class.getName(), //
+                    CurationDocumentServiceAutoConfiguration.class.getName(), //
                     LiquibaseAutoConfiguration.class.getName(), //
                     DashboardAutoConfiguration.class.getName(), //
+                    DynamicWorkloadManagerAutoConfiguration.class.getName(), //
                     InviteServiceAutoConfiguration.class.getName()))
             .withSecureConnection(false).build();
     private final S3Client s3Client = S3_MOCK.createS3ClientV2();
