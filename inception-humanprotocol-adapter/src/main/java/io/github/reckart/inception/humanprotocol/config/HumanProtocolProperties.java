@@ -26,11 +26,13 @@ public interface HumanProtocolProperties
 
     String getHumanApiUrl();
 
-    String getS3Username();
-
-    String getS3Password();
-
+    String getS3Endpoint();
+    
     String getS3Region();
+    
+    String getS3AccessKeyId();
+    
+    String getS3SecretAccessKey();
 
     String getS3Bucket();
 }

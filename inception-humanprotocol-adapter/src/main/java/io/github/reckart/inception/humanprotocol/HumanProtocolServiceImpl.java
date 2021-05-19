@@ -28,6 +28,8 @@ import static java.nio.file.Files.createDirectories;
 import static java.nio.file.Files.exists;
 import static java.nio.file.Files.newOutputStream;
 import static org.apache.commons.io.IOUtils.copyLarge;
+import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 import java.io.File;
 import java.io.IOException;
@@ -50,8 +52,6 @@ import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 
 import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryProperties;
 import de.tudarmstadt.ukp.clarin.webanno.api.event.ProjectStateChangedEvent;
@@ -218,7 +218,7 @@ public class HumanProtocolServiceImpl
         resultNotification.setNetworkId(aJobRequest.getNetworkId());
         resultNotification.setJobAddress(aJobRequest.getJobAddress());
         resultNotification.setExchangeId(hmtProperties.getExchangeId());
-        resultNotification.setJobData(URI.create(format("https://%s.s3.amazonaws.com/key/%s",
+        resultNotification.setJobData(URI.create(format("%s/%s/%s", hmtProperties.getS3Endpoint(),
                 hmtProperties.getS3Bucket(), exportKey)));
 
         postSignedMessageToHumanApi(JOB_RESULTS_ENDPOINT, resultNotification);
@@ -268,7 +268,7 @@ public class HumanProtocolServiceImpl
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder() //
                 .uri(URI.create(hmtProperties.getHumanApiUrl() + aEndpoint)) //
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .header(CONTENT_TYPE, APPLICATION_JSON_VALUE)
                 .header(HEADER_X_EXCHANGE_SIGNATURE, signature)
                 .POST(BodyPublishers.ofString(serializedMessage, UTF_8)).build();
 

@@ -117,9 +117,10 @@ import mockwebserver3.RecordedRequest;
 @SpringBootTest(webEnvironment = MOCK, properties = { //
         // These properties are required for auto-config, so we need to set them here already
         "repository.path=" + JobSubmissionTest.TEST_OUTPUT_FOLDER, //
-        "human-protocol.s3Region=us-west-2", //
-        "human-protocol.s3Username=dummy", //
-        "human-protocol.s3Password=dummy", //
+        "human-protocol.s3-endpoint=http://dummy", //
+        "human-protocol.s3-region=us-west-2", //
+        "human-protocol.s3-access-key-id=dummy", //
+        "human-protocol.s3-secret-access-key=dummy", //
         "human-protocol.human-api-key=" + JobSubmissionTest.HUMAN_API_KEY, //
         "workload.dynamic.enabled=true", //
         "sharing.invites.enabled=true" })

@@ -17,6 +17,9 @@
 package io.github.reckart.inception.humanprotocol.config;
 
 import static io.github.reckart.inception.humanprotocol.HumanProtocolController.API_BASE;
+
+import java.net.URI;
+
 import org.springdoc.core.GroupedOpenApi;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -103,7 +106,6 @@ public class HumanProtocolAutoConfiguration
         FilterRegistrationBean<HumanSignatureValidationFilter> registration = new FilterRegistrationBean<>(
                 aFilter);
         registration.addUrlPatterns(API_BASE + "/*");
-//        registration.addInitParameter(PARAM_HUMAN_API_KEY, aProperties.getHumanApiKey());
         return registration;
     }
     
@@ -127,8 +129,9 @@ public class HumanProtocolAutoConfiguration
     {
         return S3Client.builder() //
                 .region(Region.of(aHmtProperties.getS3Region()))
+                .endpointOverride(URI.create(aHmtProperties.getS3Endpoint()))
                 .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials
-                        .create(aHmtProperties.getS3Username(), aHmtProperties.getS3Password())))
+                        .create(aHmtProperties.getS3AccessKeyId(), aHmtProperties.getS3SecretAccessKey())))
                 .httpClient(ApacheHttpClient.builder().build())
                 .build();
     }

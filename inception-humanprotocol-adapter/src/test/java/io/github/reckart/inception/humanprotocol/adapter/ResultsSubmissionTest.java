@@ -105,6 +105,10 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 @EnableAutoConfiguration(exclude = LiquibaseAutoConfiguration.class)
 @SpringBootTest(webEnvironment = MOCK, properties = { //
         "repository.path=" + ResultsSubmissionTest.TEST_OUTPUT_FOLDER, //
+        "human-protocol.s3-endpoint=http://dummy", //
+        "human-protocol.s3-region=us-west-2", //
+        "human-protocol.s3-access-key-id=dummy", //
+        "human-protocol.s3-secret-access-key=dummy", //
         "human-protocol.human-api-key=" + ResultsSubmissionTest.HUMAN_API_KEY, //
         "workload.dynamic.enabled=true", //
         "sharing.invites.enabled=true" })
@@ -234,8 +238,7 @@ public class ResultsSubmissionTest
         assertThat(notification.getNetworkId()).isEqualTo(NETWORK_ID);
         assertThat(notification.getExchangeId()).isEqualTo(hmtProperties.getExchangeId());
         assertThat(notification.getJobData().toString())
-                .isEqualTo(format("https://%s.s3.amazonaws.com/key/%s/results.zip",
-                        hmtProperties.getS3Bucket(), JOB_ADDRESS));
+                .endsWith(format("/%s/%s/results.zip", hmtProperties.getS3Bucket(), JOB_ADDRESS));
     }
 
     private Project prepareProject() throws IOException

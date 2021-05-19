@@ -38,9 +38,10 @@ public class HumanProtocolPropertiesImpl
     @Pattern(regexp = UUID_PATTERN, message = "Invalid UUID")
     private String humanApiKey;
     
-    private String s3Username;
-    private String s3Password;
     private String s3Region;
+    private String s3Endpoint;
+    private String s3AccessKeyId;
+    private String s3SecretAccessKey;
     private String s3Bucket;
 
     @Override
@@ -88,36 +89,25 @@ public class HumanProtocolPropertiesImpl
     }
 
     @Override
-    public String getS3Username()
+    public String getS3AccessKeyId()
     {
-        return s3Username;
+        return s3AccessKeyId;
     }
 
-    public void setS3Username(String aS3Username)
+    public void setS3AccessKeyId(String sS3AccessKeyId)
     {
-        s3Username = aS3Username;
-    }
-
-    @Override
-    public String getS3Password()
-    {
-        return s3Password;
-    }
-
-    public void setS3Password(String aS3Password)
-    {
-        s3Password = aS3Password;
+        s3AccessKeyId = sS3AccessKeyId;
     }
 
     @Override
-    public String getS3Region()
+    public String getS3SecretAccessKey()
     {
-        return s3Region;
+        return s3SecretAccessKey;
     }
 
-    public void setS3Region(String aS3Region)
+    public void setS3SecretAccessKey(String aS3SecretAccessKey)
     {
-        s3Region = aS3Region;
+        s3SecretAccessKey = aS3SecretAccessKey;
     }
 
     @Override
@@ -129,5 +119,27 @@ public class HumanProtocolPropertiesImpl
     public void setS3Bucket(String aS3Bucket)
     {
         s3Bucket = aS3Bucket;
+    }
+
+    @Override
+    public String getS3Endpoint()
+    {
+        return s3Endpoint;
+    }
+
+    public void setS3Endpoint(String aS3Endpoint)
+    {
+        s3Endpoint = aS3Endpoint;
+    }
+
+    @Override
+    public String getS3Region()
+    {
+        return s3Region;
+    }
+
+    public void setS3Region(String aS3Region)
+    {
+        s3Region = aS3Region;
     }
 }
