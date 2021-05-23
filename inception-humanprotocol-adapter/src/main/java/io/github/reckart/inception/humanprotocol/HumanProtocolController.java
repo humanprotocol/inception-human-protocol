@@ -19,11 +19,21 @@ package io.github.reckart.inception.humanprotocol;
 import org.springframework.http.ResponseEntity;
 
 import io.github.reckart.inception.humanprotocol.messages.JobRequest;
+import io.github.reckart.inception.humanprotocol.model.JobManifest;
 
 public interface HumanProtocolController
 {
     static final String API_BASE = "/human-protocol/v1";
     static final String SUBMIT_JOB = "submitJob";
-    
-    ResponseEntity<Void> submitJob(boolean aSignatureValue, JobRequest aJobRequest) throws Exception;
+    static final String SUBMIT_JOB_MANIFEST = "submitJobManifest";
+
+    static final String PARAM_JOB_ADDRESS = "jobAddress";
+    static final String PARAM_NETWORK_ID = "networkId";
+
+    ResponseEntity<Void> submitJob(boolean aSignatureValue, JobRequest aJobRequest)
+        throws Exception;
+
+    ResponseEntity<Void> submitJobManifest(String aJobAddress, int aNetworkId,
+            boolean aSignatureValid, JobManifest aJobRequest)
+        throws Exception;
 }
