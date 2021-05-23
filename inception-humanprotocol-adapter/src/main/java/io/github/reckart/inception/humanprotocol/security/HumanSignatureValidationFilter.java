@@ -77,6 +77,9 @@ public class HumanSignatureValidationFilter
 
         // If no secret key is set (i.e. any key is accepted), we always mark the signature as valid
         if (humanApiKey == null) {
+            SecurityContextHolder.getContext()
+                    .setAuthentication(new PreAuthenticatedAuthenticationToken("HumanProtocol",
+                            null, asList(new SimpleGrantedAuthority(ROLE_ADMIN.toString()))));
             aRequest.setAttribute(ATTR_SIGNATURE_VALID, true);
             aChain.doFilter(aRequest, aResponse);
             return;

@@ -35,4 +35,6 @@ public interface HumanProtocolProperties
     String getS3SecretAccessKey();
 
     String getS3Bucket();
+    
+    boolean isS3BucketInformationAvailable();
 }

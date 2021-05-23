@@ -190,7 +190,12 @@ public class HumanProtocolServiceImpl
     
     public void publishResults(Project aProject, JobRequest aJobRequest, JobManifest aJobManifest)
         throws ProjectExportException, IOException
-    {
+    {        
+        if (hmtProperties.isS3BucketInformationAvailable()) {
+            log.warn("No S3 bucket information has been provided - not publishing results");
+            return;
+        }
+        
         File exportedProjectFile = null;
         String exportKey = getExportKey(aJobRequest);
 
@@ -214,13 +219,18 @@ public class HumanProtocolServiceImpl
             FileUtils.deleteQuietly(exportedProjectFile);
         }
 
+        if (hmtProperties.getHumanApiUrl() == null) {
+            log.warn("No Human API URL has been provided - not sending results notification");
+            return;
+        }
+
         JobResultSubmission resultNotification = new JobResultSubmission();
         resultNotification.setNetworkId(aJobRequest.getNetworkId());
         resultNotification.setJobAddress(aJobRequest.getJobAddress());
         resultNotification.setExchangeId(hmtProperties.getExchangeId());
         resultNotification.setJobData(URI.create(format("%s/%s/%s", hmtProperties.getS3Endpoint(),
                 hmtProperties.getS3Bucket(), exportKey)));
-
+        
         postSignedMessageToHumanApi(JOB_RESULTS_ENDPOINT, resultNotification);
         log.info("Notified Human API about the results");
     }

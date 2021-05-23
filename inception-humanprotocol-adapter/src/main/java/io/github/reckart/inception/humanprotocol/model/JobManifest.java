@@ -16,6 +16,7 @@
  */
 package io.github.reckart.inception.humanprotocol.model;
 
+import java.util.Collections;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -27,21 +28,21 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 public class JobManifest
 {
     private String jobId;
-    
+
     private InternationalizedStrings requesterQuestion;
     private String requesterDescription;
     private int requesterMinRepeats;
     private int requesterMaxRepeats;
     private double requesterAccuracyTarget;
     private Map<String, InternationalizedStrings> requesterRestrictedAnswerSet;
-     
+
     private long expirationDate;
-    
+
     private String taskBidPrice;
-    
+
     private String requestType;
     private Map<String, Object> requestConfig;
-    
+
     private String taskdataUri;
     private TaskData taskdata;
 
@@ -49,12 +50,12 @@ public class JobManifest
     {
         jobId = aJobId;
     }
-    
+
     public String getJobId()
     {
         return jobId;
     }
-    
+
     public InternationalizedStrings getRequesterQuestion()
     {
         return requesterQuestion;
@@ -70,6 +71,11 @@ public class JobManifest
         return requesterDescription;
     }
 
+    /**
+     * @param aRequesterDescription
+     *            arbitrary metadata supplied by requester for job description convenience
+     *            (optional)
+     */
     public void setRequesterDescription(String aRequesterDescription)
     {
         requesterDescription = aRequesterDescription;
@@ -80,6 +86,10 @@ public class JobManifest
         return requesterMinRepeats;
     }
 
+    /**
+     * @param aRequesterMinRepeats
+     *            max # of answers to collect per task (optional)
+     */
     public void setRequesterMinRepeats(int aRequesterMinRepeats)
     {
         requesterMinRepeats = aRequesterMinRepeats;
@@ -90,6 +100,10 @@ public class JobManifest
         return requesterMaxRepeats;
     }
 
+    /**
+     * @param aRequesterMaxRepeats
+     *            max # of answers to collect per task (optional)
+     */
     public void setRequesterMaxRepeats(int aRequesterMaxRepeats)
     {
         requesterMaxRepeats = aRequesterMaxRepeats;
@@ -145,12 +159,12 @@ public class JobManifest
     {
         taskdataUri = aTaskdataUri;
     }
-    
+
     public void setTaskdata(TaskData aTaskdata)
     {
         taskdata = aTaskdata;
     }
-    
+
     public TaskData getTaskdata()
     {
         return taskdata;
@@ -168,6 +182,9 @@ public class JobManifest
 
     public Map<String, Object> getRequestConfig()
     {
+        if (requestConfig == null) {
+            return Collections.emptyMap();
+        }
         return requestConfig;
     }
 

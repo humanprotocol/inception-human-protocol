@@ -17,6 +17,8 @@
 package io.github.reckart.inception.humanprotocol.config;
 
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.UUID_PATTERN;
+import static io.github.reckart.inception.humanprotocol.security.HumanSignatureValidationFilter.ANY_KEY;
+import static org.apache.commons.lang3.StringUtils.isNoneBlank;
 
 import javax.validation.constraints.Pattern;
 
@@ -29,15 +31,15 @@ public class HumanProtocolPropertiesImpl
     implements HumanProtocolProperties
 {
     private int exchangeId;
-    
+
     @Pattern(regexp = UUID_PATTERN, message = "Invalid UUID")
     private String exchangeKey;
-    
+
     private String humanApiUrl;
-    
-    @Pattern(regexp = UUID_PATTERN, message = "Invalid UUID")
+
+    @Pattern(regexp = "(" + UUID_PATTERN + ")|([" + ANY_KEY + "])", message = "Invalid UUID")
     private String humanApiKey;
-    
+
     private String s3Region;
     private String s3Endpoint;
     private String s3AccessKeyId;
@@ -54,7 +56,7 @@ public class HumanProtocolPropertiesImpl
     {
         exchangeId = aExchangeId;
     }
-    
+
     @Override
     public String getExchangeKey()
     {
@@ -141,5 +143,11 @@ public class HumanProtocolPropertiesImpl
     public void setS3Region(String aS3Region)
     {
         s3Region = aS3Region;
+    }
+
+    @Override
+    public boolean isS3BucketInformationAvailable()
+    {
+        return isNoneBlank(s3Endpoint, s3Bucket, s3AccessKeyId, s3SecretAccessKey);
     }
 }
