@@ -28,6 +28,7 @@ import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.A
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_TOKENS;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.OVERLAP_ANY;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.OVERLAP_NONE;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_DATA_FORMAT;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_ANCHORING;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_CROSS_SENENCE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_OVERLAP;
@@ -215,10 +216,13 @@ public class HumanProtocolProjectInitializer
                 }
 
                 FileUtils.write(tmpFile, response.body(), UTF_8);
+                
+                String format = (String) manifest.getRequestConfig()
+                        .getOrDefault(REQUEST_CONFIG_DATA_FORMAT, TextFormatSupport.ID);
 
                 SourceDocument sourceDocument = new SourceDocument(
                         FilenameUtils.getName(datapointUri.getPath()), aProject,
-                        TextFormatSupport.ID);
+                        format);
                 documentService.createSourceDocument(sourceDocument);
                 try (InputStream is = new FileInputStream(tmpFile)) {
                     documentService.uploadSourceDocument(is, sourceDocument);

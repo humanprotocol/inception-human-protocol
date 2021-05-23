@@ -34,6 +34,7 @@ public interface HumanProtocolConstants
    String REQUEST_CONFIG_KEY_OVERLAP = "overlap";
    String REQUEST_CONFIG_KEY_ANCHORING = "anchoring";
    String REQUEST_CONFIG_KEY_VERSION = "version";
+   String REQUEST_CONFIG_DATA_FORMAT = "dataFormat";
    
    String OVERLAP_NONE = "none";
    String OVERLAP_ANY = "any";
