@@ -16,6 +16,8 @@
  */
 package io.github.reckart.inception.humanprotocol;
 
+import static de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocumentState.FINISHED;
+import static de.tudarmstadt.ukp.clarin.webanno.model.PermissionLevel.ANNOTATOR;
 import static de.tudarmstadt.ukp.clarin.webanno.model.ProjectState.ANNOTATION_FINISHED;
 import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.toPrettyJsonString;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_EXCHANGE_SIGNATURE;
@@ -27,6 +29,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.createDirectories;
 import static java.nio.file.Files.exists;
 import static java.nio.file.Files.newOutputStream;
+import static java.util.stream.Collectors.toList;
+import static org.apache.commons.io.FileUtils.deleteQuietly;
 import static org.apache.commons.io.IOUtils.copyLarge;
 import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
@@ -46,13 +50,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.List;
 import java.util.Optional;
-
-import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 
+import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
+import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryProperties;
 import de.tudarmstadt.ukp.clarin.webanno.api.event.ProjectStateChangedEvent;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportException;
@@ -60,6 +65,7 @@ import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportRequest;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportService;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportTaskMonitor;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
+import de.tudarmstadt.ukp.clarin.webanno.security.model.User;
 import de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil;
 import de.tudarmstadt.ukp.clarin.webanno.xmi.XmiFormatSupport;
 import de.tudarmstadt.ukp.inception.sharing.InviteService;
@@ -70,6 +76,8 @@ import io.github.reckart.inception.humanprotocol.messages.InviteLinkNotification
 import io.github.reckart.inception.humanprotocol.messages.JobRequest;
 import io.github.reckart.inception.humanprotocol.messages.JobResultSubmission;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
+import io.github.reckart.inception.humanprotocol.model.PayoutItem;
+import io.github.reckart.inception.humanprotocol.model.Payouts;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -90,13 +98,18 @@ public class HumanProtocolServiceImpl
     private final InviteService inviteService;
     private final S3Client s3Client;
     private final ProjectExportService projectExportService;
+    private final DocumentService documentService;
+    private final ProjectService projectService;
 
     public HumanProtocolServiceImpl(ProjectExportService aProjectExportService,
-            InviteService aInviteService, S3Client aS3Client,
+            InviteService aInviteService, ProjectService aProjectService,
+            DocumentService aDocumentService, S3Client aS3Client,
             RepositoryProperties aRepositoryProperties, HumanProtocolProperties aHmtProperties)
     {
         repositoryProperties = aRepositoryProperties;
         inviteService = aInviteService;
+        projectService = aProjectService;
+        documentService = aDocumentService;
         hmtProperties = aHmtProperties;
         s3Client = aS3Client;
         projectExportService = aProjectExportService;
@@ -187,15 +200,35 @@ public class HumanProtocolServiceImpl
     {
         return String.format("%s/%s", aJobRequest.getJobAddress(), RESULTS_KEY_SUFFIX);
     }
-    
+
+    public Payouts getPayouts(Project aProject)
+    {
+        Payouts payouts = new Payouts();
+
+        List<User> annotators = projectService.listProjectUsersWithPermissions(aProject, ANNOTATOR);
+        for (User annotator : annotators) {
+            PayoutItem payoutItem = new PayoutItem();
+            payoutItem.setWallet(annotator.getUiName());
+
+            payoutItem.setTaskIds(documentService //
+                    .listAnnotationDocumentsWithStateForUser(aProject, annotator, FINISHED).stream()
+                    .map(ann -> ann.getDocument().getName()) //
+                    .collect(toList()));
+
+            payouts.add(payoutItem);
+        }
+
+        return payouts;
+    }
+
     public void publishResults(Project aProject, JobRequest aJobRequest, JobManifest aJobManifest)
         throws ProjectExportException, IOException
-    {        
-        if (hmtProperties.isS3BucketInformationAvailable()) {
+    {
+        if (!hmtProperties.isS3BucketInformationAvailable()) {
             log.warn("No S3 bucket information has been provided - not publishing results");
             return;
         }
-        
+
         File exportedProjectFile = null;
         String exportKey = getExportKey(aJobRequest);
 
@@ -216,7 +249,7 @@ public class HumanProtocolServiceImpl
             log.info("Published results to S3");
         }
         finally {
-            FileUtils.deleteQuietly(exportedProjectFile);
+            deleteQuietly(exportedProjectFile);
         }
 
         if (hmtProperties.getHumanApiUrl() == null) {
@@ -230,7 +263,8 @@ public class HumanProtocolServiceImpl
         resultNotification.setExchangeId(hmtProperties.getExchangeId());
         resultNotification.setJobData(URI.create(format("%s/%s/%s", hmtProperties.getS3Endpoint(),
                 hmtProperties.getS3Bucket(), exportKey)));
-        
+        resultNotification.setPayouts(getPayouts(aProject));
+
         postSignedMessageToHumanApi(JOB_RESULTS_ENDPOINT, resultNotification);
         log.info("Notified Human API about the results");
     }
@@ -260,7 +294,7 @@ public class HumanProtocolServiceImpl
         msg.setNetworkId(jobRequest.getNetworkId());
 
         postSignedMessageToHumanApi(INVITE_LINK_ENDPOINT, msg);
-        
+
         log.info("Notified Human API about the invite link");
     }
 
@@ -274,7 +308,7 @@ public class HumanProtocolServiceImpl
         catch (NoSuchAlgorithmException | InvalidKeyException ex) {
             throw new IOException("Unable to generate message signature", ex);
         }
-        
+
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder() //
                 .uri(URI.create(hmtProperties.getHumanApiUrl() + aEndpoint)) //
@@ -285,8 +319,8 @@ public class HumanProtocolServiceImpl
         try {
             HttpResponse<String> response = client.send(request, BodyHandlers.ofString(UTF_8));
             if (response.statusCode() != 200) {
-                throw new IOException("Posting message failed with status "
-                        + response.statusCode() + ": " + response.body());
+                throw new IOException("Posting message failed with status " + response.statusCode()
+                        + ": " + response.body());
             }
         }
         catch (InterruptedException e) {

@@ -22,6 +22,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
+import io.github.reckart.inception.humanprotocol.model.Payouts;
+
 /**
  * Outgoing message notifying the requester about the completion of a job.
  * 
@@ -51,6 +53,7 @@ public class JobResultSubmission
     private int exchangeId;
     private String jobAddress;
     private URI jobData;
+    private Payouts payouts;
 
     public int getNetworkId()
     {
@@ -91,6 +94,14 @@ public class JobResultSubmission
     {
         exchangeId = aExchangeId;
     }
-    
-    
+
+    public Payouts getPayouts()
+    {
+        return payouts;
+    }
+
+    public void setPayouts(Payouts aPayouts)
+    {
+        payouts = aPayouts;
+    }
 }

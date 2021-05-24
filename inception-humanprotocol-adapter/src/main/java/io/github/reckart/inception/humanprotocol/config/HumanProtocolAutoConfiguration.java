@@ -17,6 +17,7 @@
 package io.github.reckart.inception.humanprotocol.config;
 
 import static io.github.reckart.inception.humanprotocol.HumanProtocolController.API_BASE;
+import static org.springframework.security.config.http.SessionCreationPolicy.STATELESS;
 
 import java.net.URI;
 
@@ -32,8 +33,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.config.http.SessionCreationPolicy;
-
+import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryProperties;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportService;
@@ -74,7 +74,7 @@ public class HumanProtocolAutoConfiguration
                     .anyRequest().permitAll()
                 .and()
                 .sessionManagement()
-                    .sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+                    .sessionCreationPolicy(STATELESS);
             // @formatter:on
         }
     }    
@@ -98,7 +98,6 @@ public class HumanProtocolAutoConfiguration
                 }).build();
     }
 
-//    @ConditionalOnBean(HumanSignatureValidationFilter.class)
     @Bean
     public FilterRegistrationBean<HumanSignatureValidationFilter> registration(
             HumanSignatureValidationFilter aFilter)
@@ -116,11 +115,12 @@ public class HumanProtocolAutoConfiguration
 
     @Bean
     public HumanProtocolService humanProtocolService(RepositoryProperties aRepositoryProperties,
-            ProjectExportService aProjectExportService, InviteService aInviteService, HumanProtocolProperties aHmtProperties,
-            S3Client aS3Client)
+            ProjectExportService aProjectExportService, ProjectService aProjectService,
+            DocumentService aDocumentService, InviteService aInviteService,
+            HumanProtocolProperties aHmtProperties, S3Client aS3Client)
     {
-        return new HumanProtocolServiceImpl(aProjectExportService, aInviteService,
-                aS3Client, aRepositoryProperties, aHmtProperties);
+        return new HumanProtocolServiceImpl(aProjectExportService, aInviteService, aProjectService,
+                aDocumentService, aS3Client, aRepositoryProperties, aHmtProperties);
     }
 
     @ConditionalOnMissingBean

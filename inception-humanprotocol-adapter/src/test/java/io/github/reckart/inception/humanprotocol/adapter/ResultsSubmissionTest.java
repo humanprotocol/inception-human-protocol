@@ -16,8 +16,12 @@
  */
 package io.github.reckart.inception.humanprotocol.adapter;
 
+import static de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocumentState.FINISHED;
+import static de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocumentState.IN_PROGRESS;
+import static de.tudarmstadt.ukp.clarin.webanno.model.PermissionLevel.ANNOTATOR;
 import static de.tudarmstadt.ukp.clarin.webanno.model.ProjectState.ANNOTATION_FINISHED;
 import static de.tudarmstadt.ukp.clarin.webanno.model.ProjectState.ANNOTATION_IN_PROGRESS;
+import static de.tudarmstadt.ukp.clarin.webanno.security.model.Role.ROLE_USER;
 import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.fromJsonString;
 import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_USERNAME;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_EXCHANGE_SIGNATURE;
@@ -26,6 +30,7 @@ import static io.github.reckart.inception.humanprotocol.HumanProtocolService.RES
 import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateHexSignature;
 import static java.lang.String.format;
 import static java.lang.String.join;
+import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.MOCK;
 
@@ -60,6 +65,7 @@ import org.springframework.util.FileSystemUtils;
 
 import com.adobe.testing.s3mock.junit5.S3MockExtension;
 
+import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.annotationservice.config.AnnotationSchemaServiceAutoConfiguration;
@@ -72,7 +78,9 @@ import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportException;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportService;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectImportRequest;
 import de.tudarmstadt.ukp.clarin.webanno.curation.storage.config.CurationDocumentServiceAutoConfiguration;
+import de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocument;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
+import de.tudarmstadt.ukp.clarin.webanno.model.SourceDocument;
 import de.tudarmstadt.ukp.clarin.webanno.project.config.ProjectServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.project.initializers.config.ProjectInitializersAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.security.UserDao;
@@ -89,6 +97,7 @@ import io.github.reckart.inception.humanprotocol.config.HumanProtocolPropertiesI
 import io.github.reckart.inception.humanprotocol.messages.JobRequest;
 import io.github.reckart.inception.humanprotocol.messages.JobResultSubmission;
 import io.github.reckart.inception.humanprotocol.model.JobManifest;
+import io.github.reckart.inception.humanprotocol.model.PayoutItem;
 import mockwebserver3.MockResponse;
 import mockwebserver3.MockWebServer;
 import mockwebserver3.RecordedRequest;
@@ -165,6 +174,7 @@ public class ResultsSubmissionTest
 
     private @Autowired UserDao userRepository;
     private @Autowired ProjectService projectService;
+    private @Autowired DocumentService documentService;
     private @Autowired HumanProtocolServiceImpl hmtService;
     private @Autowired HumanProtocolPropertiesImpl hmtProperties;
     private @Autowired ApplicationEventPublisher applicationEventPublisher;
@@ -197,6 +207,15 @@ public class ResultsSubmissionTest
         hmtProperties.setExchangeKey(EXCHANGE_KEY);
         hmtProperties.setHumanApiKey(HUMAN_API_KEY);
         hmtProperties.setS3Bucket(BUCKET);
+        
+        // We set dummy values for the following parameters so that isS3BucketInformationAvailable()
+        // returns true - but since we inject a test client, these values are not actually used
+        // by the test.
+        hmtProperties.setS3AccessKeyId("dummy");
+        hmtProperties.setS3SecretAccessKey("dummy");
+        hmtProperties.setS3Endpoint("dummy");
+
+        assertThat(hmtProperties.isS3BucketInformationAvailable()).isTrue();
 
         if (!initialized) {
             userRepository.create(new User("admin", Role.ROLE_ADMIN));
@@ -239,6 +258,11 @@ public class ResultsSubmissionTest
         assertThat(notification.getExchangeId()).isEqualTo(hmtProperties.getExchangeId());
         assertThat(notification.getJobData().toString())
                 .endsWith(format("/%s/%s/results.zip", hmtProperties.getS3Bucket(), JOB_ADDRESS));
+        assertThat(notification.getPayouts()) //
+                .usingFieldByFieldElementComparator() //
+                .containsExactly( //
+                        new PayoutItem("anno1", "doc1"), //
+                        new PayoutItem("anno2"));
     }
 
     private Project prepareProject() throws IOException
@@ -254,6 +278,25 @@ public class ResultsSubmissionTest
         jobRequest.setJobAddress(JOB_ADDRESS);
         jobRequest.setNetworkId(NETWORK_ID);
         hmtService.writeJobRequest(project, jobRequest);
+        
+        User anno1 = userRepository.create(new User("anno1", ROLE_USER));
+        User anno2 = userRepository.create(new User("anno2", ROLE_USER));
+        
+        projectService.setProjectPermissionLevels(anno1, project, asList(ANNOTATOR));
+        projectService.setProjectPermissionLevels(anno2, project, asList(ANNOTATOR));
+        
+        SourceDocument doc1 = documentService
+                .createSourceDocument(new SourceDocument("doc1", project, ""));
+        SourceDocument doc2 = documentService
+                .createSourceDocument(new SourceDocument("doc2", project, ""));
+
+        AnnotationDocument annDoc1 = new AnnotationDocument(anno1.getUsername(), doc1);
+        annDoc1.setState(FINISHED);
+        documentService.createAnnotationDocument(annDoc1);
+        AnnotationDocument annDoc2 = new AnnotationDocument(anno2.getUsername(), doc2);
+        annDoc2.setState(IN_PROGRESS);
+        documentService.createAnnotationDocument(annDoc2);
+        
         return project;
     }
 
