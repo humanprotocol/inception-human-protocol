@@ -1,0 +1,141 @@
+# INCEpTION - HUMAN Edition
+
+## Settings
+
+This section briefly explains the recommended settings for INCEpTION when deploying to interact with HUMAN protocol. 
+
+### General settings for unsupervised deployment
+
+We assume that the INCEpTION instance should be deployed automatically. 
+
+.Default admin password
+By default, INCEpTION sets up an admin account with a standard password at the first start. It is likely that you do not want that account to be generated with the default password but rather with a more secure password of your choice. In order to do that, you can add the following line containing a BCrypt-encrypted password to the `settings.properties` file.
+
+```
+security.default-admin-password=BCRYPT_ENCRYPTED_PASSWORD
+```
+
+.Enabling the INCEpTION remote API (optional)
+Optionally, you can enable the INCEpTION remote API for the default admin user by adding these following lines to the `settings.properties` file. The communication with the HUMAN protocol uses its own API endpoints, so enabling the standard remote API is optional. However, it can be useful if you want to programmatically perform actions not available via the HUMAN API endpoints.
+
+```
+security.default-admin-remote-access=true
+remote-api.enabled=true
+```
+
+.Limit concurrent users
+Depending on the capacity of your server and the characteristics of the annotation projects you are running (e.g. document size, number of documents, number of projects), you may want to limit the number of users which can log in to the system at any given time. 
+
+```
+login.max-concurrent-sessions=50
+```
+
+.Enable crowd-sourcing annotation workflow
+In the context of the HUMAN protocol, we use a crowd-sourcing workflow where you send out invites to potential annotators and then assign them on-demand to annotate particular documents. Thus, add the following lines to your `settings.properties` file to enable dynamic workload management and the ability to generate invite links.
+
+```
+workload.dynamic.enabled=true
+sharing.invites.enabled=true
+sharing.invites.guests-enabled=true
+sharing.invites.invite-base-url=URL_WHERE_USERS_CAN_REACH_INCEPTION
+```
+
+### Settings for the HUMAN Protocol
+
+This secion highlights the settings required to communicate with services using the HUMAN protocol.
+
+To enable the submission of jobs from HUMAN to INCEpTION, it is necessary to configure INCEpTION as an *exchange* and to bind it to an instance of the *HUMAN API*. You may obain the values for the following settings from a support person on the side of the HUMAN Foundation and add them to the `settings.properties` file.
+
+```
+human-protocol.exchange-key=UUID
+human-protocol.exchange-id=NUMBER
+human-protocol.human-api-url=URL
+human-protocol.human-api-key=UUID
+```
+
+To enable the publishing of annotation task results back, you need to set up a bucket on an S3-compatible service and then configure INCEpTION to access that service using the following settings in the `settings.properties` file. The settings are targetted at the Amazon S3 service. When using another cloud storage service such as Google Cloud Storage, you may have to follow specific procedures to obain an AWS-compatible access key and secret access key. You will also have to override the endpoint URL. Setting an AWS region is mandatory, even if the selected cloud storage service does not provide the particular region - the URL override should take care of that.
+
+```
+human-protocol.s3-bucket=BUCKET_NAME
+human-protocol.s3-endpoint=ENDPOINT_URL (e.g. https://storage.googleapis.com)
+human-protocol.s3-region=REGION (e.g. us-west-2 - must be a valid AWS region name!)
+human-protocol.s3-access-key-id=ACCESS-KEY
+human-protocol.s3-secret-access-key=SECRET-ACCESS-KEY
+```
+
+## Job descriptions
+
+INCEpTION supports markdown in the `requester_question`, so you can use that to format your instructions to the annotators. Line breaks can be added using `\n`.
+
+.Expiration date
+The `expiration_date` field can be used to determine that using an invite link is only possible up to the given date. If this field is set to 0, the invite link is accessible until all documents have been annotated.
+
+### Job types
+
+The HUMAN Protocol Manifest Specification defines the general framework for describing labelling jobs that are then submitted to exchanges such as INCEpTION. INCEpTION is a text-oriented labelling tool and supports several specific settings relevant to text labelling tasks. We will briefly go through the different types of labelling jobs that are presently supported and how they can be configured in the manifest.
+
+#### Word-level annotation tasks
+
+Word-level annotation tasks require the annotator to mark one or more words that constitue some semantic entity and to label them. Optionally, it is possible that the relevant spans are already pre-marked so that the annotator only has to assign a label.
+
+For example, the annotator might be instructed to identify words or sequences of words representing persons, organizations, and locations (the classical named entities). Note though that the choice of what to identify is completely up to you, so you could also chose to let your annotators label e.g. chemical compounds, medical conditions, machine parts, job skills - you name it.
+
+```
+"requester_question" : {
+  "en" : "Please mark any *persons*, *organizations*, *locations* and *other types of entities* in the text.\n\nTo do so, left-click with the mouse on the first word that is part of the mention, then drag it to the last word and then release the mouse button. You do not have to aim exactly at the characters, clicking and releasing anywhere within a word will automatically include the entire word. If you want to quickly mark a single word, double-left-click on it."
+},
+"requester_restricted_answer_set": {
+  "PER":  { "en": "Person" },
+  "ORG":  { "en": "Organization" },
+  "LOC":  { "en": "Location" },
+  "MISC": { "en": "Other types of entities" }
+},
+"request_type" : "span_select",
+"request_config": {
+  "anchoring": "tokens",
+  "overlap": "none",
+  "crossSenence": false,
+  "dataFormat" : "textlines"
+}
+```
+
+#### Sentence-level annotation tasks
+
+Sentence-level annotation tasks require the annotator to mark relevant sentences and to assign properties to them. 
+
+For example, the annotator might be instructed to mark sentences containing *sentiment expressions* and to assign a *polarity* to them (e.g. `positive`, `neutral`, `negative`)
+
+#### Document-level annotation tasks
+
+
+### Task data
+
+Task data can be included either directly in the job manifest using the `taskdata` key, or it an external task data specification file can be reference using the `taskdata_uri` field.
+
+As mentioned above, the tasks operate e.g. on a word or sentence level. INCEpTION includes a basic mechanism for detecting words (tokens) and sentences, but you may have a better algorithm at hand for your specific data, or you might care to define a sentence differently (e.g. one tweet being once sentence, irrespective of any punctuation used in the tweet). Also you might care to reduce the effort for your annotators e.g. by already pre-marking spans which the annotators should then only assign labels to (marking the spans might have been a separate previous annotation job).
+
+To support these different kinds of scenarions, INCEpTION supports various data formats. It is necessary to define in `request_config` section of the job description which data format the task data is using.
+
+```
+"request_config": {
+  ...
+  "dataFormat" : "textlines"
+  ...
+}
+```
+
+A few supported formats are given here. Additional formats may be found in the INCEpTION documentation.
+
+Plain text (`text`)::
+  Plain UTF-8 text files. Word and sentences boundaries are automatically determined by INCEpTION.
+
+Plain text with one sentence per line (`textlines`):: 
+  Plain UTF-8 text files that have been pre-formatted to contain one sentence-like unit per line.
+  INCEpTION will treat each line in the documents as a sentence and within these sentences automatically identify word boundaries.
+
+Plain text with one sentence per line and whitespace-separated tokens (`pretokenized-textlines`)::
+  Plain UTF-8 text files that have been pre-formatted to contain one sentence-like unit per line.
+  Additionally, it is expected that words are separated by spaces. INCEpTION will not try to automatically identify word boundaries but treats every space as a boundary.
+
+UIMA CAS XMI (`xmi`)::
+  The UIMA CAS XMI format is a flexible XML-based format able to represent complex annotations. This is the format of choice for scenarios that operate on pre-annotated data.
