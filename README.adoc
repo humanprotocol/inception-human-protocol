@@ -44,6 +44,8 @@ sharing.invites.invite-base-url=URL_WHERE_USERS_CAN_REACH_INCEPTION
 
 This secion highlights the settings required to communicate with services using the HUMAN protocol.
 
+#### Receiving jobs from the HUMAN Protocol
+
 To enable the submission of jobs from HUMAN to INCEpTION, it is necessary to configure INCEpTION as an *exchange* and to bind it to an instance of the *HUMAN API*. You may obain the values for the following settings from a support person on the side of the HUMAN Foundation and add them to the `settings.properties` file.
 
 ```
@@ -52,6 +54,12 @@ human-protocol.exchange-id=NUMBER
 human-protocol.human-api-url=URL
 human-protocol.human-api-key=UUID
 ```
+
+#### Publishing results back to the HUMAN protocol
+
+====
+WARNING: Results are currently published as a full INCEpTION project export which contains all information about the project setup and also the annotations themselves in UIMA CAS XMI format. This is likely going to change.
+====
 
 To enable the publishing of annotation task results back, you need to set up a bucket on an S3-compatible service and then configure INCEpTION to access that service using the following settings in the `settings.properties` file. The settings are targetted at the Amazon S3 service. When using another cloud storage service such as Google Cloud Storage, you may have to follow specific procedures to obain an AWS-compatible access key and secret access key. You will also have to override the endpoint URL. Setting an AWS region is mandatory, even if the selected cloud storage service does not provide the particular region - the URL override should take care of that.
 
@@ -95,7 +103,7 @@ For example, the annotator might be instructed to identify words or sequences of
   "anchoring": "tokens",
   "overlap": "none",
   "crossSenence": false,
-  "dataFormat" : "textlines"
+  "dataFormat" : "text"
 }
 ```
 
@@ -105,8 +113,50 @@ Sentence-level annotation tasks require the annotator to mark relevant sentences
 
 For example, the annotator might be instructed to mark sentences containing *sentiment expressions* and to assign a *polarity* to them (e.g. `positive`, `neutral`, `negative`)
 
+```
+"requester_question" : {
+  "en" : "Please mark sentences that contain a sentiment statement and assign a polarity.\n\nTo do so, double-click anywhere within a sentence to mark it and then select the polarity on the right side of the screen."
+},
+"requester_restricted_answer_set": {
+  "pos":  { "en": "Positive sentiment expression" },
+  "neg":  { "en": "Negative sentiment expression" },
+  "neut": { "en": "Neutral sentiment expression" }
+},
+"request_type" : "span_select",
+"request_config": {
+  "anchoring": "sentences",
+  "overlap": "none",
+  "crossSenence": false,
+  "dataFormat" : "textlines"
+}
+```
+
 #### Document-level annotation tasks
 
+====
+WARNING: The functionality described in this section is supported by INCEpTION but not yet integrated with the HUMAN adapter. In particular, specifying the request type `document_classification` is not yet supported. The section serves as a basis of discussion for further steps.
+====
+
+Document-level annotation tasks require the annotator to classify a document by assigning a label. 
+
+Many sentence-level annotation tasks can also be treated as document-level annotation tasks if the documents are structured such that the consist only of a single sentence (or statement). Thus, the difference to sentence-level annotation tasks is often simply that the annotator does not have to mark relevant sentences before assigning a label to them, thus saving valuable time. On the other hand, considering sentences as documents and treating them in isolation from each other also hides the context of the sentence from the annotator, making it potentially more complicated or even impossible to assign the correct labels.
+
+For example, te annotator might be instructed to flag documents (e.g. tweets or forum comments) that contain inappropriate content.
+
+```
+"requester_question" : {
+  "en" : "Please read the tweet/forum post and if it contains inappropriate content choose the type of inappropriate content."
+},
+"requester_restricted_answer_set": {
+  "abusive-harmful":  { "en": "Abusive or harmful" },
+  "sensitive-personal": { "en": "Exposes sensitive personal information" },
+  "spam":  { "en": "Unsolicited advertisement or promotion of commercial activity" }
+},
+"request_type" : "document_classification",
+"request_config": {
+  "dataFormat" : "text"
+}
+```
 
 ### Task data
 
@@ -127,15 +177,35 @@ To support these different kinds of scenarions, INCEpTION supports various data 
 A few supported formats are given here. Additional formats may be found in the INCEpTION documentation.
 
 Plain text (`text`)::
-  Plain UTF-8 text files. Word and sentences boundaries are automatically determined by INCEpTION.
+Plain UTF-8 text files. Word and sentences boundaries are automatically determined by INCEpTION.
++
+====
+----
+This is a simple example text. INCEpTION will detect this sentence as the second sentence. Abbreviatins like Molholand Dr. can easily throw the internal sentence splitter off track.
+----
+====
 
 Plain text with one sentence per line (`textlines`):: 
-  Plain UTF-8 text files that have been pre-formatted to contain one sentence-like unit per line.
-  INCEpTION will treat each line in the documents as a sentence and within these sentences automatically identify word boundaries.
+ Plain UTF-8 text files that have been pre-formatted to contain one sentence-like unit per line. INCEpTION will treat each line in the documents as a sentence and within these sentences automatically identify word boundaries.
++
+====
+----
+In this format, every line is treated as a sentence.
+We no longer have problems with abbreviating drive into dr in Molholand Dr. as we did with plain text.
+However, we cannot have line
+breaks within a single sentence anymore.
+----
+====
 
-Plain text with one sentence per line and whitespace-separated tokens (`pretokenized-textlines`)::
-  Plain UTF-8 text files that have been pre-formatted to contain one sentence-like unit per line.
-  Additionally, it is expected that words are separated by spaces. INCEpTION will not try to automatically identify word boundaries but treats every space as a boundary.
+Plain text with one sentence per line and whitespace-separated tokens (`pretokenized-textlines`):: Plain UTF-8 text files that have been pre-formatted to contain one sentence-like unit per line. Additionally, it is expected that words are separated by spaces. INCEpTION will not try to automatically identify word boundaries but treats every space as a boundary.
++
+====
+----
+In this format , every line is treated as a sentence .
+Additionally , words ( tokens ) must be separated by a space character .
+This provides e.g. the ability to ensure that abbreviation markers are not confused with sentence end markers .
+----
+====
 
 UIMA CAS XMI (`xmi`)::
-  The UIMA CAS XMI format is a flexible XML-based format able to represent complex annotations. This is the format of choice for scenarios that operate on pre-annotated data.
+The UIMA CAS XMI format is a flexible XML-based format able to represent complex annotations. This is the format of choice for scenarios that operate on pre-annotated data.
