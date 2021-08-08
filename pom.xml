@@ -15,11 +15,11 @@
   <packaging>pom</packaging>
 
   <properties>
-    <maven.compiler.target>11</maven.compiler.target>
-    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>15</maven.compiler.target>
+    <maven.compiler.source>15</maven.compiler.source>
 
     <spring.boot.version>2.4.2</spring.boot.version>
-    <inception.version>0.20.0-SNAPSHOT</inception.version>
+    <inception.version>20.1</inception.version>
     <awssdk.version>2.16.54</awssdk.version>
     <aws-java-sdk.version>1.11.1010</aws-java-sdk.version>
   </properties>
