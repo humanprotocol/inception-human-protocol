@@ -23,7 +23,7 @@ import static de.tudarmstadt.ukp.clarin.webanno.model.OverlapMode.ANY_OVERLAP;
 import static de.tudarmstadt.ukp.clarin.webanno.model.OverlapMode.NO_OVERLAP;
 import static de.tudarmstadt.ukp.clarin.webanno.model.PermissionLevel.CURATOR;
 import static de.tudarmstadt.ukp.clarin.webanno.model.PermissionLevel.MANAGER;
-import static de.tudarmstadt.ukp.inception.sharing.model.Mandatoriness.MANDATORY;
+import static de.tudarmstadt.ukp.inception.sharing.model.Mandatoriness.NOT_ALLOWED;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_SENTENCES;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_TOKENS;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.OVERLAP_ANY;
@@ -170,10 +170,9 @@ public class HumanProtocolProjectInitializer
         invite.setGuestAccessible(true);
         invite.setInvitationText(String.join("\n", "## Welcome!", "",
                 "To earn credit for your annotations, please enter your Ethereum "
-                        + "wallet address as user ID below.",
-                "", "Please also provide your eMail address."));
-        invite.setUserIdPlaceholder("Ethereum walled address");
-        invite.setAskForEMail(MANDATORY);
+                        + "wallet address as user ID below."));
+        invite.setUserIdPlaceholder("Ethereum wallet address");
+        invite.setAskForEMail(NOT_ALLOWED);
         invite.setDisableOnAnnotationComplete(true);
         invite.setMaxAnnotatorCount(documentService.listSourceDocuments(aProject).size());
         inviteService.writeProjectInvite(invite);
