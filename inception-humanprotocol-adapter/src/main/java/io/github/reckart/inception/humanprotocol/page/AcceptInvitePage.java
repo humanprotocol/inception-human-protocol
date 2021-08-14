@@ -24,8 +24,10 @@ package io.github.reckart.inception.humanprotocol.page;
 import static de.tudarmstadt.ukp.clarin.webanno.model.PermissionLevel.ANNOTATOR;
 import static de.tudarmstadt.ukp.clarin.webanno.support.lambda.LambdaBehavior.visibleWhen;
 import static de.tudarmstadt.ukp.inception.sharing.model.Mandatoriness.MANDATORY;
+import static java.lang.String.format;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.wicket.markup.head.JavaScriptHeaderItem.forReference;
+import static org.apache.wicket.markup.head.JavaScriptHeaderItem.forScript;
 
 import java.io.Serializable;
 import java.math.BigInteger;
@@ -36,6 +38,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.wicket.AttributeModifier;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.feedback.IFeedback;
@@ -77,6 +80,7 @@ import de.tudarmstadt.ukp.inception.sharing.InviteService;
 import de.tudarmstadt.ukp.inception.sharing.config.InviteServiceProperties;
 import de.tudarmstadt.ukp.inception.sharing.model.ProjectInvite;
 import de.tudarmstadt.ukp.inception.ui.core.dashboard.project.ProjectDashboardPage;
+import io.github.reckart.inception.humanprotocol.config.HumanProtocolProperties;
 
 public class AcceptInvitePage
     extends ProjectPageBase
@@ -91,12 +95,13 @@ public class AcceptInvitePage
     private @SpringBean LoginProperties loginProperties;
     private @SpringBean SessionRegistry sessionRegistry;
     private @SpringBean InviteServiceProperties inviteServiceProperties;
+    private @SpringBean HumanProtocolProperties humanProtocolProperties;
 
     private final IModel<FormData> formModel;
     private final IModel<ProjectInvite> invite;
     private final IModel<Boolean> invitationIsValid;
     private final WebMarkupContainer tooManyUsersNotice;
-    
+
     private final String signatureRequest;
 
     public AcceptInvitePage(final PageParameters aPageParameters)
@@ -157,6 +162,14 @@ public class AcceptInvitePage
         aResponse.render(forReference(EvmChainsResourceReference.get()));
         aResponse.render(forReference(Web3ProviderResourceReference.get()));
         aResponse.render(forReference(FortmaticResourceReference.get()));
+        if (StringUtils.isNotBlank(humanProtocolProperties.getInfuraId())) {
+            aResponse.render(forScript(
+                    format("window.infuraId = '%s'", humanProtocolProperties.getInfuraId()),
+                    "infura-id-init"));
+        }
+        else {
+            aResponse.render(forScript("window.infuraId = null", "infura-id-init"));
+        }
         aResponse.render(forReference(AcceptInvitePageJavascriptResourceReference.get()));
     }
 
@@ -292,7 +305,7 @@ public class AcceptInvitePage
         }
 
         SignatureData sd = new SignatureData( //
-                v,  //
+                v, //
                 (byte[]) Arrays.copyOfRange(signatureBytes, 0, 32), //
                 (byte[]) Arrays.copyOfRange(signatureBytes, 32, 64));
 

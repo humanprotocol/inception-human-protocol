@@ -27,6 +27,7 @@ public interface HumanProtocolConstants
    String JOB_RESULTS_ENDPOINT = "/exchange/job/results";
    
    String UUID_PATTERN = "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$";
+   String INFURA_PATTERN = "^[0-9A-Fa-f]+$";
    
    String TASK_TYPE_SPAN_SELECT = "span_select";
    

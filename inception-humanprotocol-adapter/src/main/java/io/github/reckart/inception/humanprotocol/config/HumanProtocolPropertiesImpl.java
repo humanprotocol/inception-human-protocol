@@ -16,6 +16,7 @@
  */
 package io.github.reckart.inception.humanprotocol.config;
 
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.INFURA_PATTERN;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.UUID_PATTERN;
 import static io.github.reckart.inception.humanprotocol.security.HumanSignatureValidationFilter.ANY_KEY;
 import static org.apache.commons.lang3.StringUtils.isNoneBlank;
@@ -45,6 +46,9 @@ public class HumanProtocolPropertiesImpl
     private String s3AccessKeyId;
     private String s3SecretAccessKey;
     private String s3Bucket;
+    
+    @Pattern(regexp = INFURA_PATTERN, message = "Invalid Infura ID")
+    private String infuraId;
 
     @Override
     public int getExchangeId()
@@ -149,5 +153,16 @@ public class HumanProtocolPropertiesImpl
     public boolean isS3BucketInformationAvailable()
     {
         return isNoneBlank(s3Endpoint, s3Bucket, s3AccessKeyId, s3SecretAccessKey);
+    }
+    
+    public void setInfuraId(String aInfuraId)
+    {
+        infuraId = aInfuraId;
+    }
+    
+    @Override
+    public String getInfuraId()
+    {
+        return infuraId;
     }
 }

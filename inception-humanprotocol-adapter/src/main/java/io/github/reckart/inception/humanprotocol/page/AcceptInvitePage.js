@@ -38,19 +38,22 @@ let provider;
 let selectedAccount;
 
 function init() {
+  document.querySelector(".username").value = "";
   document.querySelector("#field-signature").value = "";
   document.querySelector(".btn-login").disabled = true;
   document.querySelector("#waiting-for-signature-msg").textContent = 
     "Please choose an account to proceed.";
 
-  const providerOptions = {
-    walletconnect: {
+  const providerOptions = {};
+  if (window.infuraId) {
+    providerOptions.walletconnect = {
       package: WalletConnectProvider,
       options: {
-        infuraId: "DUMMY-ID", // FIXME: Allow injecting ID from backend
+        infuraId: window.infuraId,
       }
     }
-  };
+  }
+
   web3Modal = new Web3Modal({ 
     cacheProvider: false, // optional
     providerOptions, // required
@@ -62,7 +65,16 @@ async function fetchAccountData() {
 
   // Get first account
   const accounts = await web3.eth.getAccounts();
+  if(!accounts) {
+    onConnect();
+    return;
+  }
+
   selectedAccount = accounts[0];
+  if (!selectedAccount) {
+    onConnect();
+    return;
+  }
 
   document.querySelector(".username").value = selectedAccount;
   document.querySelector("#field-signature").value = "";
@@ -102,7 +114,12 @@ async function onConnect() {
     }
   }
 
-  console.log("Opening a dialog", web3Modal);
+  document.querySelector(".username").value = "";
+  document.querySelector("#field-signature").value = "";
+  document.querySelector(".btn-login").disabled = true;
+  document.querySelector("#waiting-for-signature-msg").textContent = 
+    "Please complete the connection to your wallet.";
+    
   try {
     provider = await web3Modal.connect();
   } catch(e) {
@@ -115,7 +132,7 @@ async function onConnect() {
     fetchAccountData();
   });
 
-  await fetchAccountData(provider);
+  await fetchAccountData();
 }
 
 /**
