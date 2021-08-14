@@ -33,11 +33,15 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+
+import com.giffing.wicket.spring.boot.context.extensions.WicketApplicationInitConfiguration;
+
 import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryProperties;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportService;
 import de.tudarmstadt.ukp.inception.sharing.InviteService;
+import io.github.reckart.inception.humanprotocol.HumanProtocolAcceptInvitePageOverride;
 import io.github.reckart.inception.humanprotocol.HumanProtocolController;
 import io.github.reckart.inception.humanprotocol.HumanProtocolControllerImpl;
 import io.github.reckart.inception.humanprotocol.HumanProtocolService;
@@ -134,5 +138,10 @@ public class HumanProtocolAutoConfiguration
                         .create(aHmtProperties.getS3AccessKeyId(), aHmtProperties.getS3SecretAccessKey())))
                 .httpClient(ApacheHttpClient.builder().build())
                 .build();
+    }
+    
+    @Bean
+    public WicketApplicationInitConfiguration overrideInvitationPage() {
+        return new HumanProtocolAcceptInvitePageOverride();
     }
 }

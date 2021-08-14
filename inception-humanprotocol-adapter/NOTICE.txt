@@ -1,0 +1,36 @@
+== AcceptInvitePage java + html + properties
+
+License:   Apache License 2.0
+Source:    INCEpTION 20.1 (https://github.com/inception-project/inception)
+
+Files were adapted to use wallet-based login.
+
+
+== evm-chains_0_2_0.min.js
+
+License:   MIT License
+           Copyright (c) 2018 Pedro Gomes
+Source:    https://unpkg.com/evm-chains@0.2.0/dist/umd/index.min.js 
+           https://github.com/pedrouid/evm-chains
+
+
+== web3_1_2_11.min.js
+
+License:   GNU Lesser General Public License (http://www.gnu.org/licenses/)
+Source:    https://unpkg.com/web3@1.2.11/dist/web3.min.js
+           https://github.com/ChainSafe/web3.js/tree/v1.2.11
+
+
+== web3modal_1_9_0.min.js
+
+License:   MIT License
+           Copyright (c) 2018 Web3Modal
+Source:    https://unpkg.com/web3modal@1.9.0/dist/index.js
+           https://github.com/Web3Modal/web3modal
+
+
+== fortmatic_2_0_6.min.js
+
+License:   MIT License
+           Copyright (c) 2018 Fortmatic Inc.
+Source:    https://unpkg.com/fortmatic@2.0.6/dist/fortmatic.js

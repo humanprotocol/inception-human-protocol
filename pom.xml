@@ -15,11 +15,11 @@
   <packaging>pom</packaging>
 
   <properties>
-    <maven.compiler.target>11</maven.compiler.target>
-    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>15</maven.compiler.target>
+    <maven.compiler.source>15</maven.compiler.source>
 
     <spring.boot.version>2.4.2</spring.boot.version>
-    <inception.version>0.20.0-SNAPSHOT</inception.version>
+    <inception.version>20.1</inception.version>
     <awssdk.version>2.16.54</awssdk.version>
     <aws-java-sdk.version>1.11.1010</aws-java-sdk.version>
   </properties>
@@ -82,4 +82,42 @@
     </pluginManagement>
   </build>
   
+    <profiles>
+    <profile>
+      <id>wicket-module</id>
+      <activation>
+        <file>
+          <exists>marker-wicket-module</exists>
+        </file>
+      </activation>
+      <build>
+        <resources>
+          <resource>
+            <filtering>false</filtering>
+            <directory>src/main/resources</directory>
+            <excludes>
+              <exclude>META-INF/version.properties</exclude>
+            </excludes>
+          </resource>
+          <resource>
+            <filtering>true</filtering>
+            <directory>src/main/resources</directory>
+            <includes>
+              <include>META-INF/version.properties</include>
+            </includes>
+          </resource>
+          <resource>
+            <filtering>false</filtering>
+            <directory>src/main/java</directory>
+            <includes>
+              <include>**</include>
+            </includes>
+            <excludes>
+              <exclude>**/*.java</exclude>
+            </excludes>
+          </resource>
+        </resources>
+      </build>
+    </profile>
+  </profiles>
 </project>

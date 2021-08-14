@@ -42,11 +42,20 @@ sharing.invites.invite-base-url=URL_WHERE_USERS_CAN_REACH_INCEPTION
 
 ### Settings for the HUMAN Protocol
 
-This secion highlights the settings required to communicate with services using the HUMAN protocol.
+This section highlights the settings required to communicate with services using the HUMAN protocol.
+
+#### Wallet-based login
+
+In order to log in as an annotator via an invite link, the user needs to connect to a wallet account. Currently supported are browser-embedded solutions that are supported by web3modal such as Metamask. Additionally, it is possible to configure an Infura ID in the
+`settings.properties` file which then also enables a login via WalletConnect.
+
+```
+human-protocol.infura-id=dead1234beefDEAD5678BEEFdead1234
+```
 
 #### Receiving jobs from the HUMAN Protocol
 
-To enable the submission of jobs from HUMAN to INCEpTION, it is necessary to configure INCEpTION as an *exchange* and to bind it to an instance of the *HUMAN API*. You may obain the values for the following settings from a support person on the side of the HUMAN Foundation and add them to the `settings.properties` file.
+To enable the submission of jobs from HUMAN to INCEpTION, it is necessary to configure INCEpTION as an *exchange* and to bind it to an instance of the *HUMAN API*. You may obtain the values for the following settings from a support person on the side of the HUMAN Foundation and add them to the `settings.properties` file.
 
 ```
 human-protocol.exchange-key=UUID

@@ -37,4 +37,6 @@ public interface HumanProtocolProperties
     String getS3Bucket();
     
     boolean isS3BucketInformationAvailable();
+
+    String getInfuraId();
 }
