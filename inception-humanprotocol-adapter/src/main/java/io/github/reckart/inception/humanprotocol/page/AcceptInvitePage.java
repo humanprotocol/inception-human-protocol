@@ -24,6 +24,7 @@ package io.github.reckart.inception.humanprotocol.page;
 import static de.tudarmstadt.ukp.clarin.webanno.model.PermissionLevel.ANNOTATOR;
 import static de.tudarmstadt.ukp.clarin.webanno.support.lambda.LambdaBehavior.visibleWhen;
 import static de.tudarmstadt.ukp.inception.sharing.model.Mandatoriness.MANDATORY;
+import static de.tudarmstadt.ukp.inception.sharing.model.Mandatoriness.NOT_ALLOWED;
 import static java.lang.String.format;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.wicket.markup.head.JavaScriptHeaderItem.forReference;
@@ -252,10 +253,13 @@ public class AcceptInvitePage
     {
         Optional<User> existingUser = inviteService.getProjectUser(getProject(),
                 aFormData.username);
-        String storedEMail = existingUser.map(User::getEmail).orElse(null);
-        if (storedEMail != null && !storedEMail.equals(aFormData.eMail)) {
-            error("Provided eMail address does not match stored eMail address");
-            return null;
+        
+        if (invite.getObject().getAskForEMail() != NOT_ALLOWED) {
+            String storedEMail = existingUser.map(User::getEmail).orElse(null);
+            if (storedEMail != null && !storedEMail.equals(aFormData.eMail)) {
+                error("Provided eMail address does not match stored eMail address");
+                return null;
+            }
         }
 
         User user = inviteService.getOrCreateProjectUser(getProject(), aFormData.username);
