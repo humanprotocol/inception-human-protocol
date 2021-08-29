@@ -82,10 +82,26 @@ human-protocol.s3-secret-access-key=SECRET-ACCESS-KEY
 
 ## Job descriptions
 
-INCEpTION supports markdown in the `requester_question`, so you can use that to format your instructions to the annotators. Line breaks can be added using `\n`.
-
 .Expiration date
 The `expiration_date` field can be used to determine that using an invite link is only possible up to the given date. If this field is set to 0, the invite link is accessible until all documents have been annotated.
+
+### Project title and description
+
+As there is not default key for a project key in the HUMAN Protocol Manifest Specification, it can
+be set via the key `projectTitle` in the `request_config` section. If this key is not specified, the
+job address is used as the project title:
+
+```
+"request_config": {
+  "projectTitle": "My annotation project"
+}
+```
+
+The project description is visible to annotators on the project dashboard after they join a project.
+This description is put together from the `requester_description` and the `requester_question` keys of the
+manifest. Both fields are interpreted as markdown, so you can use that to format your instructions
+to the annotators. Line breaks can be added using `\n`.
+
 
 ### Job types
 

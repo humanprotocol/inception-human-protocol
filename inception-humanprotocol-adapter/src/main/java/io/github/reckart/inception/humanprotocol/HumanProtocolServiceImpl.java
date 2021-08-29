@@ -248,6 +248,9 @@ public class HumanProtocolServiceImpl
                     .build(), RequestBody.fromFile(exportedProjectFile));
             log.info("Published results to S3");
         }
+        catch (InterruptedException e) {
+            throw new ProjectExportException(e);
+        }
         finally {
             deleteQuietly(exportedProjectFile);
         }

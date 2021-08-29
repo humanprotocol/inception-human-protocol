@@ -31,6 +31,7 @@ public interface HumanProtocolConstants
    
    String TASK_TYPE_SPAN_SELECT = "span_select";
    
+   String REQUEST_CONFIG_KEY_PROJECT_TITLE = "projectTitle";
    String REQUEST_CONFIG_KEY_CROSS_SENENCE = "crossSenence";
    String REQUEST_CONFIG_KEY_OVERLAP = "overlap";
    String REQUEST_CONFIG_KEY_ANCHORING = "anchoring";

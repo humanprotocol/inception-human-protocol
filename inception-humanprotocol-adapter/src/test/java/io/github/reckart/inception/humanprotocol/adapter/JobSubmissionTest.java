@@ -28,6 +28,7 @@ import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.O
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_ANCHORING;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_CROSS_SENENCE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_OVERLAP;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_PROJECT_TITLE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_VERSION;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.TASK_TYPE_SPAN_SELECT;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolController.API_BASE;
@@ -85,7 +86,6 @@ import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryProperties;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.annotationservice.config.AnnotationSchemaServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.casstorage.OpenCasStorageSessionForRequestFilter;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.casstorage.config.CasStorageServiceAutoConfiguration;
-import de.tudarmstadt.ukp.clarin.webanno.api.dao.docimexport.config.DocumentImportExportServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.documentservice.config.DocumentServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.export.config.ProjectExportServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
@@ -96,6 +96,7 @@ import de.tudarmstadt.ukp.clarin.webanno.security.config.SecurityAutoConfigurati
 import de.tudarmstadt.ukp.clarin.webanno.security.model.Role;
 import de.tudarmstadt.ukp.clarin.webanno.security.model.User;
 import de.tudarmstadt.ukp.clarin.webanno.support.logging.LoggingFilter;
+import de.tudarmstadt.ukp.inception.export.config.DocumentImportExportServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.sharing.InviteService;
 import de.tudarmstadt.ukp.inception.sharing.config.InviteServicePropertiesImpl;
 import de.tudarmstadt.ukp.inception.sharing.model.ProjectInvite;
@@ -126,14 +127,14 @@ import mockwebserver3.RecordedRequest;
         "sharing.invites.enabled=true" })
 @EnableWebSecurity
 @Import({ //
+        CasStorageServiceAutoConfiguration.class, //
+        AnnotationSchemaServiceAutoConfiguration.class, //
+        ProjectServiceAutoConfiguration.class, //
         ProjectExportServiceAutoConfiguration.class, //
         DocumentServiceAutoConfiguration.class, //
         DocumentImportExportServiceAutoConfiguration.class, //
-        ProjectServiceAutoConfiguration.class, //
         ProjectInitializersAutoConfiguration.class, //
-        CasStorageServiceAutoConfiguration.class, //
         RepositoryAutoConfiguration.class, //
-        AnnotationSchemaServiceAutoConfiguration.class, //
         SecurityAutoConfiguration.class })
 @EntityScan({ //
         "de.tudarmstadt.ukp.inception", //
@@ -229,14 +230,20 @@ public class JobSubmissionTest
         postJob(createJobRequest());
 
         // Validate project has been properly created
-        assertThat(projectService.existsProject(jobRequest.getJobAddress())) //
+        assertThat(projectService.existsProjectWithSlug(jobRequest.getJobAddress())) //
                 .as("Project has been created from the job manifest using the job address as name")
                 .isTrue();
 
-        Project project = projectService.getProject(jobRequest.getJobAddress());
-        assertThat(project) //
-                .as("Project description has been set from manifest")
-                .extracting(Project::getDescription).isNotNull();
+        Project project = projectService.getProjectBySlug(jobRequest.getJobAddress());
+        assertThat(project.getSlug()) //
+                .as("Project slug does not match") //
+                .isEqualTo(jobRequest.getJobAddress());
+        assertThat(project.getName()) //
+                .as("Project title does not match") //
+                .isEqualTo("Test project");
+        assertThat(project.getDescription()) //
+                .as("Project description has been set from manifest") //
+                .isNotEmpty();
 
         Optional<JobManifest> storedManifest = hmtService.readJobManifest(project);
         assertThat(storedManifest).isPresent();
@@ -302,6 +309,7 @@ public class JobSubmissionTest
                 .withString("en", "Identify the rabbit."));
         manifest.setRequestType(TASK_TYPE_SPAN_SELECT);
         manifest.setRequestConfig(Map.of( //
+                REQUEST_CONFIG_KEY_PROJECT_TITLE, "Test project", //
                 REQUEST_CONFIG_KEY_VERSION, 0, //
                 REQUEST_CONFIG_KEY_ANCHORING, ANCHORING_TOKENS, //
                 REQUEST_CONFIG_KEY_OVERLAP, OVERLAP_NONE, //
