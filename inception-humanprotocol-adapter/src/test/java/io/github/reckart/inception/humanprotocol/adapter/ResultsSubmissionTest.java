@@ -70,7 +70,6 @@ import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.annotationservice.config.AnnotationSchemaServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.casstorage.config.CasStorageServiceAutoConfiguration;
-import de.tudarmstadt.ukp.clarin.webanno.api.dao.docimexport.config.DocumentImportExportServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.documentservice.config.DocumentServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.export.config.ProjectExportServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.event.ProjectStateChangedEvent;
@@ -88,6 +87,7 @@ import de.tudarmstadt.ukp.clarin.webanno.security.config.SecurityAutoConfigurati
 import de.tudarmstadt.ukp.clarin.webanno.security.model.Role;
 import de.tudarmstadt.ukp.clarin.webanno.security.model.User;
 import de.tudarmstadt.ukp.clarin.webanno.text.config.TextFormatsAutoConfiguration;
+import de.tudarmstadt.ukp.inception.export.config.DocumentImportExportServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.sharing.config.InviteServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.ui.core.dashboard.config.DashboardAutoConfiguration;
 import de.tudarmstadt.ukp.inception.workload.dynamic.config.DynamicWorkloadManagerAutoConfiguration;
@@ -123,15 +123,15 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
         "sharing.invites.enabled=true" })
 @EnableWebSecurity
 @Import({ //
-        ProjectExportServiceAutoConfiguration.class, //
+        CasStorageServiceAutoConfiguration.class, //
+        AnnotationSchemaServiceAutoConfiguration.class, //
+        ProjectServiceAutoConfiguration.class, //
         TextFormatsAutoConfiguration.class, //
+        ProjectExportServiceAutoConfiguration.class, //
         DocumentServiceAutoConfiguration.class, //
         DocumentImportExportServiceAutoConfiguration.class, //
         SecurityAutoConfiguration.class, //
-        ProjectServiceAutoConfiguration.class, //
-        CasStorageServiceAutoConfiguration.class, //
         RepositoryAutoConfiguration.class, //
-        AnnotationSchemaServiceAutoConfiguration.class, //
         ProjectInitializersAutoConfiguration.class })
 @EntityScan({ //
         "de.tudarmstadt.ukp.inception", //
