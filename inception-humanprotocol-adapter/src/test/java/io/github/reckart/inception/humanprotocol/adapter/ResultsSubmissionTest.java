@@ -239,7 +239,8 @@ public class ResultsSubmissionTest
 
         // Validate that the submitted results are as expected
         Project copyOfProject = fetchProjectFromBucket();
-        assertThat(copyOfProject.getName()).isEqualTo("copy_of_" + project.getName());
+        assertThat(copyOfProject.getSlug()).isEqualTo(project.getSlug() + "-1");
+        assertThat(copyOfProject.getName()).isEqualTo(project.getName());
 
         // Validate invite link notification
         RecordedRequest jobResultsNotificationRequest = metaApiServer.takeRequest();

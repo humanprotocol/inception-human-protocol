@@ -28,6 +28,7 @@ import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.O
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_ANCHORING;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_CROSS_SENENCE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_OVERLAP;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_PROJECT_TITLE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_VERSION;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.TASK_TYPE_SPAN_SELECT;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolController.API_BASE;
@@ -234,9 +235,15 @@ public class JobSubmissionTest
                 .isTrue();
 
         Project project = projectService.getProjectBySlug(jobRequest.getJobAddress());
-        assertThat(project) //
-                .as("Project description has been set from manifest")
-                .extracting(Project::getDescription).isNotNull();
+        assertThat(project.getSlug()) //
+                .as("Project slug does not match") //
+                .isEqualTo(jobRequest.getJobAddress());
+        assertThat(project.getName()) //
+                .as("Project title does not match") //
+                .isEqualTo("Test project");
+        assertThat(project.getDescription()) //
+                .as("Project description has been set from manifest") //
+                .isNotEmpty();
 
         Optional<JobManifest> storedManifest = hmtService.readJobManifest(project);
         assertThat(storedManifest).isPresent();
@@ -302,6 +309,7 @@ public class JobSubmissionTest
                 .withString("en", "Identify the rabbit."));
         manifest.setRequestType(TASK_TYPE_SPAN_SELECT);
         manifest.setRequestConfig(Map.of( //
+                REQUEST_CONFIG_KEY_PROJECT_TITLE, "Test project", //
                 REQUEST_CONFIG_KEY_VERSION, 0, //
                 REQUEST_CONFIG_KEY_ANCHORING, ANCHORING_TOKENS, //
                 REQUEST_CONFIG_KEY_OVERLAP, OVERLAP_NONE, //

@@ -16,9 +16,11 @@
  */
 package io.github.reckart.inception.humanprotocol;
 
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_PROJECT_TITLE;
 import static io.github.reckart.inception.humanprotocol.security.HumanSignatureValidationFilter.ATTR_SIGNATURE_VALID;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.MediaType.ALL_VALUE;
@@ -60,7 +62,7 @@ public class HumanProtocolControllerImpl
     implements HumanProtocolController
 {
     private final Logger log = LoggerFactory.getLogger(getClass());
-    
+
     private final ApplicationContext applicationContext;
     private final ProjectService projectService;
     private final HumanProtocolService hmtService;
@@ -88,7 +90,7 @@ public class HumanProtocolControllerImpl
         }
 
         createJob(aJobRequest);
-        
+
         return new ResponseEntity<>(CREATED);
     }
 
@@ -107,7 +109,7 @@ public class HumanProtocolControllerImpl
         if (!aSignatureValid) {
             return new ResponseEntity<>(BAD_REQUEST);
         }
-        
+
         File tmpManifestFile = null;
         try {
             tmpManifestFile = File.createTempFile("manifest", ".json");
@@ -124,7 +126,7 @@ public class HumanProtocolControllerImpl
                 tmpManifestFile.delete();
             }
         }
-        
+
         return new ResponseEntity<>(CREATED);
     }
 
@@ -132,28 +134,36 @@ public class HumanProtocolControllerImpl
     {
         Project project = new Project(aJobRequest.getJobAddress());
         projectService.createProject(project);
-        
+
         try {
             hmtService.writeJobRequest(project, aJobRequest);
-            
+
             try (InputStream is = aJobRequest.getJobManifest().toURL().openStream()) {
                 hmtService.importJobManifest(project, is);
             }
-            
+
             JobManifest manifest = hmtService.readJobManifest(project).get();
             if (manifest.getRequesterQuestion() != null) {
                 project.setDescription(manifest.getRequesterQuestion().get("en"));
             }
+
+            String name = (String) manifest.getRequestConfig()
+                    .get(REQUEST_CONFIG_KEY_PROJECT_TITLE);
+            if (isNotBlank(name)) {
+                project.setName(name);
+            }
+
             projectService.updateProject(project);
-    
-            HumanProtocolProjectInitializer initializer = new HumanProtocolProjectInitializer(manifest);
-            
+
+            HumanProtocolProjectInitializer initializer = new HumanProtocolProjectInitializer(
+                    manifest);
+
             AutowireCapableBeanFactory factory = applicationContext.getAutowireCapableBeanFactory();
             factory.autowireBean(initializer);
             factory.initializeBean(initializer, "transientInitializer");
-            
+
             projectService.initializeProject(project, asList(initializer));
-            
+
             hmtService.publishInviteLink(project);
         }
         catch (Exception e) {
@@ -163,7 +173,7 @@ public class HumanProtocolControllerImpl
             catch (Exception ex) {
                 log.error("Unable to clean up project after failing to accept job submission", ex);
             }
-            
+
             throw e;
         }
     }

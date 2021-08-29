@@ -215,13 +215,12 @@ public class HumanProtocolProjectInitializer
                 }
 
                 FileUtils.write(tmpFile, response.body(), UTF_8);
-                
+
                 String format = (String) manifest.getRequestConfig()
                         .getOrDefault(REQUEST_CONFIG_DATA_FORMAT, TextFormatSupport.ID);
 
                 SourceDocument sourceDocument = new SourceDocument(
-                        FilenameUtils.getName(datapointUri.getPath()), aProject,
-                        format);
+                        FilenameUtils.getName(datapointUri.getPath()), aProject, format);
                 documentService.createSourceDocument(sourceDocument);
                 try (InputStream is = new FileInputStream(tmpFile)) {
                     documentService.uploadSourceDocument(is, sourceDocument);
