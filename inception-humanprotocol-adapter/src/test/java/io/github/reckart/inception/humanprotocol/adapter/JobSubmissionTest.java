@@ -286,6 +286,23 @@ public class JobSubmissionTest
                 .isEqualTo(documentService.listSourceDocuments(project).size());
     }
     
+    private JobManifest generateSpanSelectTaskJobManifest(TaskData aTaskData) {
+        JobManifest manifest = new JobManifest();
+        manifest.setJobId(UUID.randomUUID().toString());
+        manifest.setTaskdata(aTaskData);
+        manifest.setRequesterQuestion(new InternationalizedStrings() // 
+                .withString("en", "Identify the rabbit."));
+        manifest.setRequestType(TASK_TYPE_SPAN_SELECT);
+        manifest.setRequestConfig(Map.of( //
+                REQUEST_CONFIG_KEY_PROJECT_TITLE, "Test project", //
+                REQUEST_CONFIG_KEY_VERSION, 0, //
+                REQUEST_CONFIG_KEY_ANCHORING, ANCHORING_TOKENS, //
+                REQUEST_CONFIG_KEY_OVERLAP, OVERLAP_NONE, //
+                REQUEST_CONFIG_KEY_CROSS_SENENCE, false));
+        return manifest;
+    }
+
+    
     private JobManifest generateJobManifestAndEnqueueDataResponses(String... aDocuments)
         throws IOException
     {
@@ -302,18 +319,7 @@ public class JobSubmissionTest
             taskData.add(item);
         }
         
-        JobManifest manifest = new JobManifest();
-        manifest.setJobId(UUID.randomUUID().toString());
-        manifest.setTaskdata(taskData);
-        manifest.setRequesterQuestion(new InternationalizedStrings() // 
-                .withString("en", "Identify the rabbit."));
-        manifest.setRequestType(TASK_TYPE_SPAN_SELECT);
-        manifest.setRequestConfig(Map.of( //
-                REQUEST_CONFIG_KEY_PROJECT_TITLE, "Test project", //
-                REQUEST_CONFIG_KEY_VERSION, 0, //
-                REQUEST_CONFIG_KEY_ANCHORING, ANCHORING_TOKENS, //
-                REQUEST_CONFIG_KEY_OVERLAP, OVERLAP_NONE, //
-                REQUEST_CONFIG_KEY_CROSS_SENENCE, false));
+        JobManifest manifest = generateSpanSelectTaskJobManifest(taskData);
         
         // This is actually the first request that needs to be served
         responses.push(
@@ -348,6 +354,7 @@ public class JobSubmissionTest
             .andExpect(status().isCreated());
         // @formatter:on
     }
+    
 
     @SpringBootConfiguration
     public static class TestContext

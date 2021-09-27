@@ -90,6 +90,7 @@ import de.tudarmstadt.ukp.inception.export.config.DocumentImportExportServiceAut
 import de.tudarmstadt.ukp.inception.project.export.config.ProjectExportServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.sharing.config.InviteServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.ui.core.dashboard.config.DashboardAutoConfiguration;
+import de.tudarmstadt.ukp.inception.ui.core.docanno.config.DocumentMetadataLayerSupportAutoConfiguration;
 import de.tudarmstadt.ukp.inception.workload.dynamic.config.DynamicWorkloadManagerAutoConfiguration;
 import io.github.reckart.inception.humanprotocol.HumanProtocolServiceImpl;
 import io.github.reckart.inception.humanprotocol.config.HumanProtocolAutoConfiguration;
@@ -112,19 +113,23 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
  */
 @ExtendWith(SpringExtension.class)
 @EnableAutoConfiguration(exclude = LiquibaseAutoConfiguration.class)
-@SpringBootTest(webEnvironment = MOCK, properties = { //
-        "repository.path=" + ResultsSubmissionTest.TEST_OUTPUT_FOLDER, //
-        "human-protocol.s3-endpoint=http://dummy", //
-        "human-protocol.s3-region=us-west-2", //
-        "human-protocol.s3-access-key-id=dummy", //
-        "human-protocol.s3-secret-access-key=dummy", //
-        "human-protocol.human-api-key=" + ResultsSubmissionTest.HUMAN_API_KEY, //
-        "workload.dynamic.enabled=true", //
-        "sharing.invites.enabled=true" })
+@SpringBootTest( //
+        webEnvironment = MOCK, //
+        properties = { //
+                "repository.path=" + ResultsSubmissionTest.TEST_OUTPUT_FOLDER, //
+                "human-protocol.s3-endpoint=http://dummy", //
+                "human-protocol.s3-region=us-west-2", //
+                "human-protocol.s3-access-key-id=dummy", //
+                "human-protocol.s3-secret-access-key=dummy", //
+                "human-protocol.human-api-key=" + ResultsSubmissionTest.HUMAN_API_KEY, //
+                "documentmetadata.enabled=true", //
+                "workload.dynamic.enabled=true", //
+                "sharing.invites.enabled=true" })
 @EnableWebSecurity
 @Import({ //
         CasStorageServiceAutoConfiguration.class, //
         AnnotationSchemaServiceAutoConfiguration.class, //
+        DocumentMetadataLayerSupportAutoConfiguration.class, //
         ProjectServiceAutoConfiguration.class, //
         TextFormatsAutoConfiguration.class, //
         ProjectExportServiceAutoConfiguration.class, //
@@ -144,6 +149,7 @@ public class ResultsSubmissionTest
     @RegisterExtension
     static final S3MockExtension S3_MOCK = S3MockExtension.builder().silent()
             .withProperty("spring.autoconfigure.exclude", join(",", //
+                    DocumentMetadataLayerSupportAutoConfiguration.class.getName(), //
                     HumanProtocolAutoConfiguration.class.getName(), //
                     ProjectExportServiceAutoConfiguration.class.getName(), //
                     DocumentServiceAutoConfiguration.class.getName(), //
@@ -207,7 +213,7 @@ public class ResultsSubmissionTest
         hmtProperties.setExchangeKey(EXCHANGE_KEY);
         hmtProperties.setHumanApiKey(HUMAN_API_KEY);
         hmtProperties.setS3Bucket(BUCKET);
-        
+
         // We set dummy values for the following parameters so that isS3BucketInformationAvailable()
         // returns true - but since we inject a test client, these values are not actually used
         // by the test.
@@ -279,13 +285,13 @@ public class ResultsSubmissionTest
         jobRequest.setJobAddress(JOB_ADDRESS);
         jobRequest.setNetworkId(NETWORK_ID);
         hmtService.writeJobRequest(project, jobRequest);
-        
+
         User anno1 = userRepository.create(new User("anno1", ROLE_USER));
         User anno2 = userRepository.create(new User("anno2", ROLE_USER));
-        
+
         projectService.setProjectPermissionLevels(anno1, project, asList(ANNOTATOR));
         projectService.setProjectPermissionLevels(anno2, project, asList(ANNOTATOR));
-        
+
         SourceDocument doc1 = documentService
                 .createSourceDocument(new SourceDocument("doc1", project, ""));
         SourceDocument doc2 = documentService
@@ -297,7 +303,7 @@ public class ResultsSubmissionTest
         AnnotationDocument annDoc2 = new AnnotationDocument(anno2.getUsername(), doc2);
         annDoc2.setState(IN_PROGRESS);
         documentService.createAnnotationDocument(annDoc2);
-        
+
         return project;
     }
 

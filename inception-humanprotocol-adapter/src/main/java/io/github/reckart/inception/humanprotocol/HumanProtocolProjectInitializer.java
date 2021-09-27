@@ -71,6 +71,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
 import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
+import de.tudarmstadt.ukp.clarin.webanno.api.annotation.layer.LayerSupportRegistry;
 import de.tudarmstadt.ukp.clarin.webanno.api.project.ProjectInitializer;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnchoringMode;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocumentState;
@@ -87,6 +88,8 @@ import de.tudarmstadt.ukp.clarin.webanno.security.model.User;
 import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
 import de.tudarmstadt.ukp.inception.sharing.InviteService;
 import de.tudarmstadt.ukp.inception.sharing.model.ProjectInvite;
+import de.tudarmstadt.ukp.inception.ui.core.docanno.layer.DocumentMetadataLayerSupport;
+import de.tudarmstadt.ukp.inception.ui.core.docanno.layer.DocumentMetadataLayerTraits;
 import de.tudarmstadt.ukp.inception.workload.dynamic.DynamicWorkloadExtension;
 import de.tudarmstadt.ukp.inception.workload.dynamic.trait.DynamicWorkloadTraits;
 import de.tudarmstadt.ukp.inception.workload.model.WorkloadManagementService;
@@ -109,6 +112,7 @@ public class HumanProtocolProjectInitializer
     private @Autowired ProjectService projectService;
     private @Autowired UserDao userService;
     private @Autowired InviteService inviteService;
+    private @Autowired LayerSupportRegistry layerSupportRegistry;
 
     private final JobManifest manifest;
 
@@ -248,6 +252,9 @@ public class HumanProtocolProjectInitializer
         case TASK_TYPE_SPAN_SELECT:
             initializeSpanSelectionTask(aProject);
             break;
+        case HumanProtocolConstants.TASK_TYPE_DOCUMENT_TAGGING:
+            initializeDocumentTaggingTask(aProject);
+            break;
         default:
             throw new IllegalArgumentException(
                     "Unsupported request type [" + manifest.getRequestType() + "]");
@@ -316,6 +323,28 @@ public class HumanProtocolProjectInitializer
         schemaService.createFeature(stringFeature);
     }
 
+    private void initializeDocumentTaggingTask(Project aProject)
+    {
+        Validate.notNull(manifest.getRequestConfig(),
+                "Manifest must contain a request configuration");
+
+        Optional<TagSet> tagset = initializeTagset(aProject);
+
+        AnnotationLayer docMetaLayer = new AnnotationLayer("custom.DocumentTag", "Document Tag",
+                DocumentMetadataLayerSupport.TYPE, aProject, false, TOKENS,
+                NO_OVERLAP);
+        DocumentMetadataLayerTraits traits = new DocumentMetadataLayerTraits();
+        traits.setSingleton(true);
+        docMetaLayer.setTraits(TYPE_NAME_STRING);
+        layerSupportRegistry.getLayerSupport(docMetaLayer).writeTraits(docMetaLayer, traits);
+        schemaService.createOrUpdateLayer(docMetaLayer);
+
+        AnnotationFeature stringFeature = new AnnotationFeature(aProject, docMetaLayer, "value",
+                "Value", TYPE_NAME_STRING);
+        tagset.ifPresent(stringFeature::setTagset);
+        schemaService.createFeature(stringFeature);
+    }
+    
     private void initializeProjectDescription(Project aProject)
     {
         StringBuilder description = new StringBuilder();
