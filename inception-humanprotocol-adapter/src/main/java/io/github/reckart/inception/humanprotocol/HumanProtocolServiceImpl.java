@@ -249,7 +249,8 @@ public class HumanProtocolServiceImpl
             log.info("Published results to S3");
         }
         catch (InterruptedException e) {
-            throw new ProjectExportException(e);
+            log.warn("Sending results notification aborted: " + e.getMessage(), e);
+            return;
         }
         finally {
             deleteQuietly(exportedProjectFile);

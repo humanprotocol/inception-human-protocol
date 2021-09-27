@@ -22,6 +22,7 @@ import static org.springframework.security.config.http.SessionCreationPolicy.STA
 import java.net.URI;
 
 import org.springdoc.core.GroupedOpenApi;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration;
@@ -40,7 +41,9 @@ import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryProperties;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportService;
+import de.tudarmstadt.ukp.clarin.webanno.project.config.ProjectServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.sharing.InviteService;
+import de.tudarmstadt.ukp.inception.sharing.config.InviteServiceAutoConfiguration;
 import io.github.reckart.inception.humanprotocol.HumanProtocolAcceptInvitePageOverride;
 import io.github.reckart.inception.humanprotocol.HumanProtocolController;
 import io.github.reckart.inception.humanprotocol.HumanProtocolControllerImpl;
@@ -56,6 +59,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 @Configuration
 @EnableConfigurationProperties(HumanProtocolPropertiesImpl.class)
+@AutoConfigureAfter({ ProjectServiceAutoConfiguration.class, InviteServiceAutoConfiguration.class })
 @AutoConfigureBefore({ WebMvcAutoConfiguration.class })
 public class HumanProtocolAutoConfiguration
 {
