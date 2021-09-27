@@ -56,6 +56,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3ClientBuilder;
 
 @Configuration
 @EnableConfigurationProperties(HumanProtocolPropertiesImpl.class)
@@ -135,13 +136,16 @@ public class HumanProtocolAutoConfiguration
     @Bean
     public S3Client humanProtocolS3Client(HumanProtocolProperties aHmtProperties)
     {
-        return S3Client.builder() //
-                .region(Region.of(aHmtProperties.getS3Region()))
-                .endpointOverride(URI.create(aHmtProperties.getS3Endpoint()))
-                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials
-                        .create(aHmtProperties.getS3AccessKeyId(), aHmtProperties.getS3SecretAccessKey())))
-                .httpClient(ApacheHttpClient.builder().build())
-                .build();
+        S3ClientBuilder builder = S3Client.builder();
+        builder.region(Region.of(aHmtProperties.getS3Region()));
+        if (aHmtProperties.getS3Endpoint() != null) {
+            builder.endpointOverride(URI.create(aHmtProperties.getS3Endpoint()));
+        }
+        builder.credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials
+                .create(aHmtProperties.getS3AccessKeyId(), aHmtProperties.getS3SecretAccessKey())));
+        builder.httpClient(ApacheHttpClient.builder().build());
+        
+        return builder.build();
     }
     
     @Bean
