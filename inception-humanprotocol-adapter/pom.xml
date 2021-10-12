@@ -48,6 +48,10 @@
       <groupId>de.tudarmstadt.ukp.inception.app</groupId>
       <artifactId>inception-sharing</artifactId>
     </dependency>
+    <dependency>
+      <groupId>de.tudarmstadt.ukp.inception.app</groupId>
+      <artifactId>inception-layer-docmetadata</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>commons-codec</groupId>

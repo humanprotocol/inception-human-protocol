@@ -30,6 +30,7 @@ public interface HumanProtocolConstants
    String INFURA_PATTERN = "^[0-9A-Fa-f]+$";
    
    String TASK_TYPE_SPAN_SELECT = "span_select";
+   String TASK_TYPE_DOCUMENT_CLASSIFICATION = "document_classification";
    
    String REQUEST_CONFIG_KEY_PROJECT_TITLE = "projectTitle";
    String REQUEST_CONFIG_KEY_CROSS_SENENCE = "crossSenence";

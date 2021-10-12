@@ -21,8 +21,6 @@ import static de.tudarmstadt.ukp.clarin.webanno.model.AnchoringMode.SENTENCES;
 import static de.tudarmstadt.ukp.clarin.webanno.model.AnchoringMode.TOKENS;
 import static de.tudarmstadt.ukp.clarin.webanno.model.OverlapMode.ANY_OVERLAP;
 import static de.tudarmstadt.ukp.clarin.webanno.model.OverlapMode.NO_OVERLAP;
-import static de.tudarmstadt.ukp.clarin.webanno.model.PermissionLevel.CURATOR;
-import static de.tudarmstadt.ukp.clarin.webanno.model.PermissionLevel.MANAGER;
 import static de.tudarmstadt.ukp.inception.sharing.model.Mandatoriness.NOT_ALLOWED;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_SENTENCES;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_TOKENS;
@@ -32,6 +30,7 @@ import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.R
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_ANCHORING;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_CROSS_SENENCE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_OVERLAP;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.TASK_TYPE_DOCUMENT_CLASSIFICATION;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.TASK_TYPE_SPAN_SELECT;
 import static java.io.File.createTempFile;
 import static java.lang.Boolean.TRUE;
@@ -71,6 +70,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
 import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
+import de.tudarmstadt.ukp.clarin.webanno.api.annotation.layer.LayerSupportRegistry;
 import de.tudarmstadt.ukp.clarin.webanno.api.project.ProjectInitializer;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnchoringMode;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocumentState;
@@ -83,10 +83,11 @@ import de.tudarmstadt.ukp.clarin.webanno.model.Tag;
 import de.tudarmstadt.ukp.clarin.webanno.model.TagSet;
 import de.tudarmstadt.ukp.clarin.webanno.project.initializers.TokenLayerInitializer;
 import de.tudarmstadt.ukp.clarin.webanno.security.UserDao;
-import de.tudarmstadt.ukp.clarin.webanno.security.model.User;
 import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
 import de.tudarmstadt.ukp.inception.sharing.InviteService;
 import de.tudarmstadt.ukp.inception.sharing.model.ProjectInvite;
+import de.tudarmstadt.ukp.inception.ui.core.docanno.layer.DocumentMetadataLayerSupport;
+import de.tudarmstadt.ukp.inception.ui.core.docanno.layer.DocumentMetadataLayerTraits;
 import de.tudarmstadt.ukp.inception.workload.dynamic.DynamicWorkloadExtension;
 import de.tudarmstadt.ukp.inception.workload.dynamic.trait.DynamicWorkloadTraits;
 import de.tudarmstadt.ukp.inception.workload.model.WorkloadManagementService;
@@ -109,6 +110,7 @@ public class HumanProtocolProjectInitializer
     private @Autowired ProjectService projectService;
     private @Autowired UserDao userService;
     private @Autowired InviteService inviteService;
+    private @Autowired LayerSupportRegistry layerSupportRegistry;
 
     private final JobManifest manifest;
 
@@ -138,8 +140,6 @@ public class HumanProtocolProjectInitializer
     @Override
     public void configure(Project aProject) throws IOException
     {
-        // initializeProjectRoles(aProject);
-
         initializeProjectDescription(aProject);
 
         initializeTask(aProject);
@@ -176,12 +176,6 @@ public class HumanProtocolProjectInitializer
         invite.setDisableOnAnnotationComplete(true);
         invite.setMaxAnnotatorCount(documentService.listSourceDocuments(aProject).size());
         inviteService.writeProjectInvite(invite);
-    }
-
-    private void initializeProjectRoles(Project aProject)
-    {
-        User currentUser = userService.getCurrentUser();
-        projectService.setProjectPermissionLevels(currentUser, aProject, asList(MANAGER, CURATOR));
     }
 
     private void initializeTaskData(Project aProject) throws IOException
@@ -247,6 +241,9 @@ public class HumanProtocolProjectInitializer
         switch (manifest.getRequestType()) {
         case TASK_TYPE_SPAN_SELECT:
             initializeSpanSelectionTask(aProject);
+            break;
+        case TASK_TYPE_DOCUMENT_CLASSIFICATION:
+            initializeDocumentClassificationTask(aProject);
             break;
         default:
             throw new IllegalArgumentException(
@@ -316,6 +313,28 @@ public class HumanProtocolProjectInitializer
         schemaService.createFeature(stringFeature);
     }
 
+    private void initializeDocumentClassificationTask(Project aProject)
+    {
+        Validate.notNull(manifest.getRequestConfig(),
+                "Manifest must contain a request configuration");
+
+        Optional<TagSet> tagset = initializeTagset(aProject);
+
+        AnnotationLayer docMetaLayer = new AnnotationLayer("custom.DocumentTag", "Document Tag",
+                DocumentMetadataLayerSupport.TYPE, aProject, false, TOKENS,
+                NO_OVERLAP);
+        DocumentMetadataLayerTraits traits = new DocumentMetadataLayerTraits();
+        traits.setSingleton(true);
+        docMetaLayer.setTraits(TYPE_NAME_STRING);
+        layerSupportRegistry.getLayerSupport(docMetaLayer).writeTraits(docMetaLayer, traits);
+        schemaService.createOrUpdateLayer(docMetaLayer);
+
+        AnnotationFeature stringFeature = new AnnotationFeature(aProject, docMetaLayer, "value",
+                "Value", TYPE_NAME_STRING);
+        tagset.ifPresent(stringFeature::setTagset);
+        schemaService.createFeature(stringFeature);
+    }
+    
     private void initializeProjectDescription(Project aProject)
     {
         StringBuilder description = new StringBuilder();
