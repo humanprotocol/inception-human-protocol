@@ -129,7 +129,7 @@ public class HumanProtocolProjectInitializerTest
         JobManifest manifest = new JobManifest();
         manifest.setRequesterQuestion(new InternationalizedStrings() //
                 .withString("en", "Identify the rabbit."));
-        manifest.setRequestType(HumanProtocolConstants.TASK_TYPE_DOCUMENT_TAGGING);
+        manifest.setRequestType(HumanProtocolConstants.TASK_TYPE_DOCUMENT_CLASSIFICATION);
         manifest.setRequestConfig(Map.of( //
                 REQUEST_CONFIG_KEY_VERSION, 0));
 

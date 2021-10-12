@@ -21,8 +21,6 @@ import static de.tudarmstadt.ukp.clarin.webanno.model.AnchoringMode.SENTENCES;
 import static de.tudarmstadt.ukp.clarin.webanno.model.AnchoringMode.TOKENS;
 import static de.tudarmstadt.ukp.clarin.webanno.model.OverlapMode.ANY_OVERLAP;
 import static de.tudarmstadt.ukp.clarin.webanno.model.OverlapMode.NO_OVERLAP;
-import static de.tudarmstadt.ukp.clarin.webanno.model.PermissionLevel.CURATOR;
-import static de.tudarmstadt.ukp.clarin.webanno.model.PermissionLevel.MANAGER;
 import static de.tudarmstadt.ukp.inception.sharing.model.Mandatoriness.NOT_ALLOWED;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_SENTENCES;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_TOKENS;
@@ -32,6 +30,7 @@ import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.R
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_ANCHORING;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_CROSS_SENENCE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_OVERLAP;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.TASK_TYPE_DOCUMENT_CLASSIFICATION;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.TASK_TYPE_SPAN_SELECT;
 import static java.io.File.createTempFile;
 import static java.lang.Boolean.TRUE;
@@ -84,7 +83,6 @@ import de.tudarmstadt.ukp.clarin.webanno.model.Tag;
 import de.tudarmstadt.ukp.clarin.webanno.model.TagSet;
 import de.tudarmstadt.ukp.clarin.webanno.project.initializers.TokenLayerInitializer;
 import de.tudarmstadt.ukp.clarin.webanno.security.UserDao;
-import de.tudarmstadt.ukp.clarin.webanno.security.model.User;
 import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
 import de.tudarmstadt.ukp.inception.sharing.InviteService;
 import de.tudarmstadt.ukp.inception.sharing.model.ProjectInvite;
@@ -142,8 +140,6 @@ public class HumanProtocolProjectInitializer
     @Override
     public void configure(Project aProject) throws IOException
     {
-        // initializeProjectRoles(aProject);
-
         initializeProjectDescription(aProject);
 
         initializeTask(aProject);
@@ -180,12 +176,6 @@ public class HumanProtocolProjectInitializer
         invite.setDisableOnAnnotationComplete(true);
         invite.setMaxAnnotatorCount(documentService.listSourceDocuments(aProject).size());
         inviteService.writeProjectInvite(invite);
-    }
-
-    private void initializeProjectRoles(Project aProject)
-    {
-        User currentUser = userService.getCurrentUser();
-        projectService.setProjectPermissionLevels(currentUser, aProject, asList(MANAGER, CURATOR));
     }
 
     private void initializeTaskData(Project aProject) throws IOException
@@ -252,8 +242,8 @@ public class HumanProtocolProjectInitializer
         case TASK_TYPE_SPAN_SELECT:
             initializeSpanSelectionTask(aProject);
             break;
-        case HumanProtocolConstants.TASK_TYPE_DOCUMENT_TAGGING:
-            initializeDocumentTaggingTask(aProject);
+        case TASK_TYPE_DOCUMENT_CLASSIFICATION:
+            initializeDocumentClassificationTask(aProject);
             break;
         default:
             throw new IllegalArgumentException(
@@ -323,7 +313,7 @@ public class HumanProtocolProjectInitializer
         schemaService.createFeature(stringFeature);
     }
 
-    private void initializeDocumentTaggingTask(Project aProject)
+    private void initializeDocumentClassificationTask(Project aProject)
     {
         Validate.notNull(manifest.getRequestConfig(),
                 "Manifest must contain a request configuration");
