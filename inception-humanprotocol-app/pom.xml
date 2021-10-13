@@ -21,6 +21,17 @@
     </dependency>
 
     <dependency>
+      <!-- 
+        Just to make sure this gets downloaded because the spring-boot-maven-plugin will 
+        need it but it won't download it.
+      -->
+      <groupId>de.tudarmstadt.ukp.inception.app</groupId>
+      <artifactId>inception-boot-loader</artifactId>
+      <version>${inception.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
       <groupId>io.github.reckart</groupId>
       <artifactId>inception-humanprotocol-adapter</artifactId>
     </dependency>
