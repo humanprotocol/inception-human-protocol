@@ -30,14 +30,18 @@ import static io.github.reckart.inception.humanprotocol.HumanProtocolService.RES
 import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateHexSignature;
 import static java.lang.String.format;
 import static java.lang.String.join;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.MOCK;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.function.Supplier;
 import java.util.zip.ZipFile;
 
 import org.apache.commons.io.IOUtils;
@@ -75,7 +79,6 @@ import de.tudarmstadt.ukp.clarin.webanno.api.event.ProjectStateChangedEvent;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportException;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportService;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectImportRequest;
-import de.tudarmstadt.ukp.clarin.webanno.curation.storage.config.CurationDocumentServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocument;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
 import de.tudarmstadt.ukp.clarin.webanno.model.SourceDocument;
@@ -85,7 +88,10 @@ import de.tudarmstadt.ukp.clarin.webanno.security.UserDao;
 import de.tudarmstadt.ukp.clarin.webanno.security.config.SecurityAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.security.model.Role;
 import de.tudarmstadt.ukp.clarin.webanno.security.model.User;
+import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
 import de.tudarmstadt.ukp.clarin.webanno.text.config.TextFormatsAutoConfiguration;
+import de.tudarmstadt.ukp.inception.curation.config.CurationDocumentServiceAutoConfiguration;
+import de.tudarmstadt.ukp.inception.curation.config.CurationServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.export.config.DocumentImportExportServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.project.export.config.ProjectExportServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.sharing.config.InviteServiceAutoConfiguration;
@@ -127,6 +133,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
                 "sharing.invites.enabled=true" })
 @EnableWebSecurity
 @Import({ //
+        SecurityAutoConfiguration.class, //
         CasStorageServiceAutoConfiguration.class, //
         AnnotationSchemaServiceAutoConfiguration.class, //
         DocumentMetadataLayerSupportAutoConfiguration.class, //
@@ -135,7 +142,6 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
         ProjectExportServiceAutoConfiguration.class, //
         DocumentServiceAutoConfiguration.class, //
         DocumentImportExportServiceAutoConfiguration.class, //
-        SecurityAutoConfiguration.class, //
         RepositoryAutoConfiguration.class, //
         ProjectInitializersAutoConfiguration.class })
 @EntityScan({ //
@@ -149,6 +155,7 @@ public class ResultsSubmissionTest
     @RegisterExtension
     static final S3MockExtension S3_MOCK = S3MockExtension.builder().silent()
             .withProperty("spring.autoconfigure.exclude", join(",", //
+                    CurationServiceAutoConfiguration.class.getName(), //
                     DocumentMetadataLayerSupportAutoConfiguration.class.getName(), //
                     HumanProtocolAutoConfiguration.class.getName(), //
                     ProjectExportServiceAutoConfiguration.class.getName(), //
@@ -272,7 +279,7 @@ public class ResultsSubmissionTest
                         new PayoutItem("anno2"));
     }
 
-    private Project prepareProject() throws IOException
+    private Project prepareProject() throws Exception
     {
         Project project = new Project("test");
         project.setState(ANNOTATION_FINISHED);
@@ -293,16 +300,20 @@ public class ResultsSubmissionTest
         projectService.setProjectPermissionLevels(anno2, project, asList(ANNOTATOR));
 
         SourceDocument doc1 = documentService
-                .createSourceDocument(new SourceDocument("doc1", project, ""));
+                .createSourceDocument(new SourceDocument("doc1", project, TextFormatSupport.ID));
         SourceDocument doc2 = documentService
-                .createSourceDocument(new SourceDocument("doc2", project, ""));
+                .createSourceDocument(new SourceDocument("doc2", project, TextFormatSupport.ID));
 
+        Supplier<InputStream> testDocumentStream = () -> new ByteArrayInputStream(
+                "Test.".getBytes(UTF_8));
         AnnotationDocument annDoc1 = new AnnotationDocument(anno1.getUsername(), doc1);
         annDoc1.setState(FINISHED);
         documentService.createAnnotationDocument(annDoc1);
+        documentService.uploadSourceDocument(testDocumentStream.get(), doc1);
         AnnotationDocument annDoc2 = new AnnotationDocument(anno2.getUsername(), doc2);
         annDoc2.setState(IN_PROGRESS);
         documentService.createAnnotationDocument(annDoc2);
+        documentService.uploadSourceDocument(testDocumentStream.get(), doc2);
 
         return project;
     }

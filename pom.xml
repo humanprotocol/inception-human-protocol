@@ -13,16 +13,51 @@
   <artifactId>inception-humanprotocol</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <packaging>pom</packaging>
+  
+  <licenses>
+    <license>
+      <name>Apache License Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
 
   <properties>
     <maven.compiler.target>15</maven.compiler.target>
     <maven.compiler.source>15</maven.compiler.source>
 
-    <spring.boot.version>2.5.4</spring.boot.version>
-    <inception.version>21.0.1</inception.version>
+    <spring.boot.version>2.5.5</spring.boot.version>
+    <inception.version>22.0-SNAPSHOT</inception.version>
     <awssdk.version>2.16.54</awssdk.version>
     <aws-java-sdk.version>1.11.1010</aws-java-sdk.version>
   </properties>
+  
+  <repositories>
+      <!-- For RELEASEs of INCEpTION -->
+    <repository>
+      <id>ukp-oss-releases</id>
+      <url>https://zoidberg.ukp.informatik.tu-darmstadt.de/artifactory/public-releases</url>
+      <releases>
+        <enabled>true</enabled>
+        <updatePolicy>never</updatePolicy>
+        <checksumPolicy>warn</checksumPolicy>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+    <!-- For SNAPSHOTs of INCEpTION -->
+    <repository>
+      <id>ukp-oss-snapshots</id>
+      <url>https://zoidberg.ukp.informatik.tu-darmstadt.de/artifactory/public-snapshots</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
 
   <modules>
     <module>inception-humanprotocol-adapter</module>    <module>inception-humanprotocol-app</module>
