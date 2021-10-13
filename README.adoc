@@ -158,15 +158,11 @@ For example, the annotator might be instructed to mark sentences containing *sen
 
 #### Document-level annotation tasks
 
-====
-WARNING: The functionality described in this section is supported by INCEpTION but not yet integrated with the HUMAN adapter. In particular, specifying the request type `document_classification` is not yet supported. The section serves as a basis of discussion for further steps.
-====
-
 Document-level annotation tasks require the annotator to classify a document by assigning a label. 
 
 Many sentence-level annotation tasks can also be treated as document-level annotation tasks if the documents are structured such that the consist only of a single sentence (or statement). Thus, the difference to sentence-level annotation tasks is often simply that the annotator does not have to mark relevant sentences before assigning a label to them, thus saving valuable time. On the other hand, considering sentences as documents and treating them in isolation from each other also hides the context of the sentence from the annotator, making it potentially more complicated or even impossible to assign the correct labels.
 
-For example, te annotator might be instructed to flag documents (e.g. tweets or forum comments) that contain inappropriate content.
+For example, the annotator might be instructed to flag documents (e.g. tweets or forum comments) that contain inappropriate content.
 
 ```
 "requester_question" : {
@@ -182,6 +178,44 @@ For example, te annotator might be instructed to flag documents (e.g. tweets or 
   "dataFormat" : "text"
 }
 ```
+
+#### Request types and request configuration parameters
+
+|====
+| Request type | Description
+
+| `span_select`
+| Labelling of spans of text. Use this e.g. for named entity annotation tasks or other tasks for which you could train a sequence labelling model.
+
+| `document_classification`
+| Labelling of the entire document. Use this e.g. for marking emails as spam or other tasks for which you could train a document classification model.
+
+|====
+
+|====
+| Request configuration parameter | Request type | Description
+
+| `projectTitle`
+| any
+| The name/title of the project.
+
+| `dataFormat`
+| any
+| The format use for the task data. See below for a list of supported formats.
+
+| `anchoring`
+| `span_select`
+| The granularity of the annotations. Possible values are `tokens` and `sentences`. If the selected data format does not provide token and sentence boundary information, a simple token and sentence boundary detection will be performed by INCEpTION. Note that this simple detection may have issues such as generating a sentence boundary when a dot is used to mark an abbreviation. It is typically the best idea to provide data to INCEpTION that is already tokenized and which has sentence boundary information.
+
+| `crossSenence`
+| `span_select`
+| Whether annotations may cross sentence boundaries or not. Possible values are `true` and `false` (cf. `anchoring` above).
+
+| `overlap`
+| `span_select`
+| Whether annotations may overlap. Possible values are `none` and `any`. Allowing overlapping annotations also allows placing multiple annotations at the same location (stacking) which is useful if the labelling task allows for ambiguities or multiple answers.
+
+|====
 
 ### Task data
 
