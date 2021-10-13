@@ -44,5 +44,4 @@ public interface HumanProtocolConstants
 
    String ANCHORING_TOKENS = "tokens";
    String ANCHORING_SENTENCES = "sentences";
-   String ANCHORING_DOCUMENTS = "documents";
 }
