@@ -6,7 +6,7 @@
   <parent>
     <groupId>org.dkpro</groupId>
     <artifactId>dkpro-parent-pom</artifactId>
-    <version>25</version>
+    <version>26</version>
   </parent>
 
   <groupId>io.github.reckart</groupId>
@@ -14,14 +14,6 @@
   <version>0.0.1-SNAPSHOT</version>
   <packaging>pom</packaging>
   
-  <licenses>
-    <license>
-      <name>Apache License Version 2.0</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
-
   <licenses>
     <license>
       <name>Apache License Version 2.0</name>
