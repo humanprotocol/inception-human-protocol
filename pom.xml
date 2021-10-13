@@ -22,6 +22,14 @@
     </license>
   </licenses>
 
+  <licenses>
+    <license>
+      <name>Apache License Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
   <properties>
     <maven.compiler.target>15</maven.compiler.target>
     <maven.compiler.source>15</maven.compiler.source>
@@ -32,6 +40,33 @@
     <aws-java-sdk.version>1.11.1010</aws-java-sdk.version>
   </properties>
   
+  <repositories>
+      <!-- For RELEASEs of INCEpTION -->
+    <repository>
+      <id>ukp-oss-releases</id>
+      <url>https://zoidberg.ukp.informatik.tu-darmstadt.de/artifactory/public-releases</url>
+      <releases>
+        <enabled>true</enabled>
+        <updatePolicy>never</updatePolicy>
+        <checksumPolicy>warn</checksumPolicy>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+    <!-- For SNAPSHOTs of INCEpTION -->
+    <repository>
+      <id>ukp-oss-snapshots</id>
+      <url>https://zoidberg.ukp.informatik.tu-darmstadt.de/artifactory/public-snapshots</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
+
   <repositories>
       <!-- For RELEASEs of INCEpTION -->
     <repository>
