@@ -227,17 +227,18 @@ public class JobSubmissionTest
                 .as("Starting with emtpy database (no projects)").hasSize(0);
 
         JobRequest jobRequest = createJobRequest();
+        String jobSlug = "job-" + jobRequest.getJobAddress();
         postJob(createJobRequest());
 
         // Validate project has been properly created
-        assertThat(projectService.existsProjectWithSlug(jobRequest.getJobAddress())) //
+        assertThat(projectService.existsProjectWithSlug(jobSlug)) //
                 .as("Project has been created from the job manifest using the job address as name")
                 .isTrue();
 
-        Project project = projectService.getProjectBySlug(jobRequest.getJobAddress());
+        Project project = projectService.getProjectBySlug(jobSlug);
         assertThat(project.getSlug()) //
                 .as("Project slug does not match") //
-                .isEqualTo(jobRequest.getJobAddress());
+                .isEqualTo(jobSlug);
         assertThat(project.getName()) //
                 .as("Project title does not match") //
                 .isEqualTo("Test project");

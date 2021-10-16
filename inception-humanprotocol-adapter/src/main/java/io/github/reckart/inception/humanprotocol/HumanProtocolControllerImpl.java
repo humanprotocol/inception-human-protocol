@@ -132,7 +132,11 @@ public class HumanProtocolControllerImpl
 
     public void createJob(JobRequest aJobRequest) throws IOException
     {
-        Project project = new Project(aJobRequest.getJobAddress());
+        String projectSlug = projectService.deriveSlugFromName("job-"+aJobRequest.getJobAddress());
+        projectSlug = projectService.deriveUniqueSlug(projectSlug);
+        Project project = new Project();
+        project.setSlug(projectSlug);
+        project.setName("Job: " + aJobRequest.getJobAddress());
         projectService.createProject(project);
 
         try {
