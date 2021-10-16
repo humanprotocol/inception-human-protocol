@@ -256,8 +256,8 @@ public class HumanProtocolServiceImpl
             deleteQuietly(exportedProjectFile);
         }
 
-        if (hmtProperties.getHumanApiUrl() == null) {
-            log.warn("No Human API URL has been provided - not sending results notification");
+        if (hmtProperties.getJobFlowUrl() == null) {
+            log.warn("No HUMAN Protocol Job Flow URL has been provided - not sending results notification");
             return;
         }
 
@@ -270,7 +270,7 @@ public class HumanProtocolServiceImpl
         resultNotification.setPayouts(getPayouts(aProject));
 
         postSignedMessageToHumanApi(JOB_RESULTS_ENDPOINT, resultNotification);
-        log.info("Notified Human API about the results");
+        log.info("Notified HUMAN Protocol Job Flow about the results");
     }
 
     @Override
@@ -282,8 +282,8 @@ public class HumanProtocolServiceImpl
             return;
         }
 
-        if (hmtProperties.getHumanApiUrl() == null) {
-            log.warn("No Human API URL has been provided - not sending invite link");
+        if (hmtProperties.getJobFlowUrl() == null) {
+            log.warn("No HUMAN Protocol Job Flow URL has been provided - not sending invite link");
             return;
         }
 
@@ -299,7 +299,7 @@ public class HumanProtocolServiceImpl
 
         postSignedMessageToHumanApi(INVITE_LINK_ENDPOINT, msg);
 
-        log.info("Notified Human API about the invite link");
+        log.info("Notified HUMAN Protocol Job Flow about the invite link");
     }
 
     private void postSignedMessageToHumanApi(String aEndpoint, Object aMessage) throws IOException
@@ -315,7 +315,7 @@ public class HumanProtocolServiceImpl
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder() //
-                .uri(URI.create(hmtProperties.getHumanApiUrl() + aEndpoint)) //
+                .uri(URI.create(hmtProperties.getJobFlowUrl() + aEndpoint)) //
                 .header(CONTENT_TYPE, APPLICATION_JSON_VALUE)
                 .header(HEADER_X_EXCHANGE_SIGNATURE, signature)
                 .POST(BodyPublishers.ofString(serializedMessage, UTF_8)).build();

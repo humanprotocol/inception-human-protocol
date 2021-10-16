@@ -22,9 +22,9 @@ public interface HumanProtocolProperties
 
     int getExchangeId();
 
-    String getHumanApiKey();
+    String getJobFlowKey();
 
-    String getHumanApiUrl();
+    String getJobFlowUrl();
 
     String getS3Endpoint();
     
