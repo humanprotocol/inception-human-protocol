@@ -21,7 +21,10 @@ import static org.springframework.security.config.http.SessionCreationPolicy.STA
 
 import java.net.URI;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springdoc.core.GroupedOpenApi;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -64,6 +67,8 @@ import software.amazon.awssdk.services.s3.S3ClientBuilder;
 @AutoConfigureBefore({ WebMvcAutoConfiguration.class })
 public class HumanProtocolAutoConfiguration
 {
+    private final Logger log = LoggerFactory.getLogger(getClass());
+
     @Order(2)
     @Configuration
     public static class HumanProtocolApiSecurity
@@ -126,7 +131,7 @@ public class HumanProtocolAutoConfiguration
     public HumanProtocolService humanProtocolService(RepositoryProperties aRepositoryProperties,
             ProjectExportService aProjectExportService, ProjectService aProjectService,
             DocumentService aDocumentService, InviteService aInviteService,
-            HumanProtocolProperties aHmtProperties, S3Client aS3Client)
+            HumanProtocolProperties aHmtProperties, @Autowired(required = false) S3Client aS3Client)
     {
         return new HumanProtocolServiceImpl(aProjectExportService, aInviteService, aProjectService,
                 aDocumentService, aS3Client, aRepositoryProperties, aHmtProperties);
@@ -136,6 +141,11 @@ public class HumanProtocolAutoConfiguration
     @Bean
     public S3Client humanProtocolS3Client(HumanProtocolProperties aHmtProperties)
     {
+        if (aHmtProperties.getS3Region() == null) {
+            log.warn("No S3 region was specified - disabling S3 functionality");
+            return null;
+        }
+        
         S3ClientBuilder builder = S3Client.builder();
         builder.region(Region.of(aHmtProperties.getS3Region()));
         if (aHmtProperties.getS3Endpoint() != null) {

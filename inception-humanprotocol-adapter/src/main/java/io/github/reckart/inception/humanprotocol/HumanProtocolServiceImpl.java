@@ -54,6 +54,7 @@ import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 
 import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
@@ -103,7 +104,7 @@ public class HumanProtocolServiceImpl
 
     public HumanProtocolServiceImpl(ProjectExportService aProjectExportService,
             InviteService aInviteService, ProjectService aProjectService,
-            DocumentService aDocumentService, S3Client aS3Client,
+            DocumentService aDocumentService, @Autowired(required = false) S3Client aS3Client,
             RepositoryProperties aRepositoryProperties, HumanProtocolProperties aHmtProperties)
     {
         repositoryProperties = aRepositoryProperties;
@@ -224,7 +225,7 @@ public class HumanProtocolServiceImpl
     public void publishResults(Project aProject, JobRequest aJobRequest, JobManifest aJobManifest)
         throws ProjectExportException, IOException
     {
-        if (!hmtProperties.isS3BucketInformationAvailable()) {
+        if (!hmtProperties.isS3BucketInformationAvailable() || s3Client == null) {
             log.warn("No S3 bucket information has been provided - not publishing results");
             return;
         }
