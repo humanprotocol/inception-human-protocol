@@ -17,11 +17,13 @@
 package io.github.reckart.inception.humanprotocol;
 
 import static de.tudarmstadt.ukp.clarin.webanno.api.WebAnnoConst.SPAN_TYPE;
+import static de.tudarmstadt.ukp.clarin.webanno.model.AnchoringMode.CHARACTERS;
 import static de.tudarmstadt.ukp.clarin.webanno.model.AnchoringMode.SENTENCES;
 import static de.tudarmstadt.ukp.clarin.webanno.model.AnchoringMode.TOKENS;
 import static de.tudarmstadt.ukp.clarin.webanno.model.OverlapMode.ANY_OVERLAP;
 import static de.tudarmstadt.ukp.clarin.webanno.model.OverlapMode.NO_OVERLAP;
 import static de.tudarmstadt.ukp.inception.sharing.model.Mandatoriness.NOT_ALLOWED;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_CHARACTERS;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_SENTENCES;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_TOKENS;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.OVERLAP_ANY;
@@ -69,7 +71,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
 import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
-import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.annotation.layer.LayerSupportRegistry;
 import de.tudarmstadt.ukp.clarin.webanno.api.project.ProjectInitializer;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnchoringMode;
@@ -82,7 +83,6 @@ import de.tudarmstadt.ukp.clarin.webanno.model.SourceDocument;
 import de.tudarmstadt.ukp.clarin.webanno.model.Tag;
 import de.tudarmstadt.ukp.clarin.webanno.model.TagSet;
 import de.tudarmstadt.ukp.clarin.webanno.project.initializers.TokenLayerInitializer;
-import de.tudarmstadt.ukp.clarin.webanno.security.UserDao;
 import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
 import de.tudarmstadt.ukp.inception.sharing.InviteService;
 import de.tudarmstadt.ukp.inception.sharing.model.ProjectInvite;
@@ -101,14 +101,10 @@ import software.amazon.awssdk.utils.StringUtils;
 public class HumanProtocolProjectInitializer
     implements ProjectInitializer
 {
-    // private final Logger log = LoggerFactory.getLogger(getClass());
-
     private @Autowired AnnotationSchemaService schemaService;
     private @Autowired DocumentService documentService;
     private @Autowired WorkloadManagementService workloadService;
     private @Autowired DynamicWorkloadExtension dynamicWorkload;
-    private @Autowired ProjectService projectService;
-    private @Autowired UserDao userService;
     private @Autowired InviteService inviteService;
     private @Autowired LayerSupportRegistry layerSupportRegistry;
 
@@ -272,14 +268,18 @@ public class HumanProtocolProjectInitializer
         AnchoringMode anchoringMode;
         Object anchoringModeValue = manifest.getRequestConfig()
                 .getOrDefault(REQUEST_CONFIG_KEY_ANCHORING, ANCHORING_TOKENS);
-        if (ANCHORING_TOKENS.equals(anchoringModeValue)) {
+        
+        if (ANCHORING_CHARACTERS.equals(anchoringModeValue)) {
+            anchoringMode = CHARACTERS;
+        }
+        else if (ANCHORING_TOKENS.equals(anchoringModeValue)) {
             anchoringMode = TOKENS;
         }
         else if (ANCHORING_SENTENCES.equals(anchoringModeValue)) {
             anchoringMode = SENTENCES;
         }
         else {
-            anchoringMode = TOKENS;
+            anchoringMode = CHARACTERS;
         }
 
         OverlapMode overlapMode;
