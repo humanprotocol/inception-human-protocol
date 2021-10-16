@@ -26,7 +26,7 @@
     <maven.compiler.target>15</maven.compiler.target>
     <maven.compiler.source>15</maven.compiler.source>
 
-    <spring.boot.version>2.5.5</spring.boot.version>
+    <spring.boot.version>2.5.4</spring.boot.version>
     <inception.version>21.0.1</inception.version>
     <awssdk.version>2.16.54</awssdk.version>
     <aws-java-sdk.version>1.11.1010</aws-java-sdk.version>
@@ -58,6 +58,31 @@
       </snapshots>
     </repository>
   </repositories>
+
+  <pluginRepositories>
+    <pluginRepository>
+      <id>ukp-oss-releases</id>
+      <url>https://zoidberg.ukp.informatik.tu-darmstadt.de/artifactory/public-releases</url>
+      <releases>
+        <enabled>true</enabled>
+        <updatePolicy>never</updatePolicy>
+        <checksumPolicy>warn</checksumPolicy>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </pluginRepository>
+    <pluginRepository>
+      <id>ukp-oss-snapshots</id>
+      <url>https://zoidberg.ukp.informatik.tu-darmstadt.de/artifactory/public-snapshots</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </pluginRepository>
+  </pluginRepositories>
 
   <modules>
     <module>inception-humanprotocol-adapter</module>    <module>inception-humanprotocol-app</module>
