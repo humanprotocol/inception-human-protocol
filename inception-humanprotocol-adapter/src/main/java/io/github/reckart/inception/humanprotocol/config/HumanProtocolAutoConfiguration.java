@@ -67,7 +67,9 @@ import software.amazon.awssdk.services.s3.S3ClientBuilder;
 @AutoConfigureBefore({ WebMvcAutoConfiguration.class })
 public class HumanProtocolAutoConfiguration
 {
-    private final Logger log = LoggerFactory.getLogger(getClass());
+    // Intentionally not using MethodHandles.lookup() or getClass() here because then we get a
+    // Spring-wrapper class name like "HumanProtocolAutoConfiguration$$EnhancerBySpringCGLIB..."
+    private static final Logger LOG = LoggerFactory.getLogger(HumanProtocolAutoConfiguration.class);
 
     @Order(2)
     @Configuration
@@ -142,7 +144,7 @@ public class HumanProtocolAutoConfiguration
     public S3Client humanProtocolS3Client(HumanProtocolProperties aHmtProperties)
     {
         if (aHmtProperties.getS3Region() == null) {
-            log.warn("No S3 region was specified - disabling S3 functionality");
+            LOG.warn("No S3 region was specified - disabling S3 functionality");
             return null;
         }
         
