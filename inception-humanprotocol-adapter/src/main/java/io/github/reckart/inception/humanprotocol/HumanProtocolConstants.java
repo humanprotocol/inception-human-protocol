@@ -45,4 +45,6 @@ public interface HumanProtocolConstants
    String ANCHORING_CHARACTERS = "characters";
    String ANCHORING_TOKENS = "tokens";
    String ANCHORING_SENTENCES = "sentences";
+   
+   String[] VALID_URI_SCHEMES = { "http", "https" };
 }

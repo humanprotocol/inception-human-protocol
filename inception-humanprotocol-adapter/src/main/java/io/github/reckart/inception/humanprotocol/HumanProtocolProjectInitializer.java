@@ -34,9 +34,11 @@ import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.R
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_KEY_OVERLAP;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.TASK_TYPE_DOCUMENT_CLASSIFICATION;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.TASK_TYPE_SPAN_SELECT;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.VALID_URI_SCHEMES;
 import static java.io.File.createTempFile;
 import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
+import static java.lang.String.join;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.temporal.ChronoUnit.HOURS;
 import static java.util.Arrays.asList;
@@ -174,6 +176,21 @@ public class HumanProtocolProjectInitializer
         inviteService.writeProjectInvite(invite);
     }
 
+    private boolean hasAcceptedUriScheme(URI aUri)
+    {
+        return asList(VALID_URI_SCHEMES).contains(aUri.getScheme());
+    }
+
+    private void enforceAcceptedUriScheme(URI aUri) throws IOException
+    {
+        if (!hasAcceptedUriScheme(aUri)) {
+            throw new IOException(format(
+                    "URI [%s] has the scheme [%s] which is not accepted. Only one of [%s] "
+                            + "are valid.",
+                            aUri, aUri.getScheme(), join(", ", VALID_URI_SCHEMES)));
+        }
+    }
+
     private void initializeTaskData(Project aProject) throws IOException
     {
         if (manifest.getTaskdataUri() == null && manifest.getTaskdata() == null) {
@@ -182,7 +199,9 @@ public class HumanProtocolProjectInitializer
 
         TaskData taskData;
         if (manifest.getTaskdataUri() != null) {
-            taskData = JobManifestUtils.loadTaskData(URI.create(manifest.getTaskdataUri()));
+            URI taskDataUri = URI.create(manifest.getTaskdataUri());
+            enforceAcceptedUriScheme(taskDataUri);
+            taskData = JobManifestUtils.loadTaskData(taskDataUri);
         }
         else {
             taskData = manifest.getTaskdata();
@@ -191,6 +210,9 @@ public class HumanProtocolProjectInitializer
         HttpClient client = HttpClient.newHttpClient();
         for (TaskDataItem item : taskData) {
             URI datapointUri = URI.create(item.getDatapointUri());
+
+            enforceAcceptedUriScheme(datapointUri);
+
             File tmpFile = createTempFile("taskDataItem", getExtension(datapointUri.getPath()));
             try {
                 HttpRequest request = HttpRequest.newBuilder().uri(datapointUri).build();
@@ -268,7 +290,7 @@ public class HumanProtocolProjectInitializer
         AnchoringMode anchoringMode;
         Object anchoringModeValue = manifest.getRequestConfig()
                 .getOrDefault(REQUEST_CONFIG_KEY_ANCHORING, ANCHORING_TOKENS);
-        
+
         if (ANCHORING_CHARACTERS.equals(anchoringModeValue)) {
             anchoringMode = CHARACTERS;
         }
@@ -321,8 +343,7 @@ public class HumanProtocolProjectInitializer
         Optional<TagSet> tagset = initializeTagset(aProject);
 
         AnnotationLayer docMetaLayer = new AnnotationLayer("custom.DocumentTag", "Document Tag",
-                DocumentMetadataLayerSupport.TYPE, aProject, false, TOKENS,
-                NO_OVERLAP);
+                DocumentMetadataLayerSupport.TYPE, aProject, false, TOKENS, NO_OVERLAP);
         DocumentMetadataLayerTraits traits = new DocumentMetadataLayerTraits();
         traits.setSingleton(true);
         docMetaLayer.setTraits(TYPE_NAME_STRING);
@@ -334,7 +355,7 @@ public class HumanProtocolProjectInitializer
         tagset.ifPresent(stringFeature::setTagset);
         schemaService.createFeature(stringFeature);
     }
-    
+
     private void initializeProjectDescription(Project aProject)
     {
         StringBuilder description = new StringBuilder();
