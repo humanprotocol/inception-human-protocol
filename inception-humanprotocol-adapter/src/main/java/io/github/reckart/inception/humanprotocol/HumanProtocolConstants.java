@@ -42,6 +42,7 @@ public interface HumanProtocolConstants
    String OVERLAP_NONE = "none";
    String OVERLAP_ANY = "any";
 
+   String ANCHORING_CHARACTERS = "characters";
    String ANCHORING_TOKENS = "tokens";
    String ANCHORING_SENTENCES = "sentences";
 }

@@ -197,23 +197,23 @@ For example, the annotator might be instructed to flag documents (e.g. tweets or
 
 | `projectTitle`
 | any
-| The name/title of the project.
+| The name/title of the project (if not specified, the job address is used as the default title).
 
 | `dataFormat`
 | any
-| The format use for the task data. See below for a list of supported formats.
+| The format use for the task data (default: `text`). See below for a list of supported formats.
 
 | `anchoring`
 | `span_select`
-| The granularity of the annotations. Possible values are `tokens` and `sentences`. If the selected data format does not provide token and sentence boundary information, a simple token and sentence boundary detection will be performed by INCEpTION. Note that this simple detection may have issues such as generating a sentence boundary when a dot is used to mark an abbreviation. It is typically the best idea to provide data to INCEpTION that is already tokenized and which has sentence boundary information.
+| The granularity of the annotations. Possible values are `characters`, `tokens` and `sentences` (default: `characters`). If the selected data format does not provide token and sentence boundary information, a simple token and sentence boundary detection will be performed by INCEpTION. Note that this simple detection may have issues such as generating a sentence boundary when a dot is used to mark an abbreviation. It is typically the best idea to provide data to INCEpTION that is already tokenized and which has sentence boundary information.
 
 | `crossSenence`
 | `span_select`
-| Whether annotations may cross sentence boundaries or not. Possible values are `true` and `false` (cf. `anchoring` above).
+| Whether annotations may cross sentence boundaries or not. Possible values are `true` and `false` (default: `false`). For more info on automatic sentence detection, see `anchoring` above.
 
 | `overlap`
 | `span_select`
-| Whether annotations may overlap. Possible values are `none` and `any`. Allowing overlapping annotations also allows placing multiple annotations at the same location (stacking) which is useful if the labelling task allows for ambiguities or multiple answers.
+| Whether annotations may overlap. Possible values are `none` and `any` (default: `none`). Allowing overlapping annotations also allows placing multiple annotations at the same location (stacking) which is useful if the labelling task allows for ambiguities or multiple answers.
 
 |====
 
