@@ -152,7 +152,7 @@ public class HumanProtocolPropertiesImpl
     @Override
     public boolean isS3BucketInformationAvailable()
     {
-        return isNoneBlank(s3Endpoint, s3Bucket, s3AccessKeyId, s3SecretAccessKey);
+        return isNoneBlank(s3Endpoint, s3Region, s3Bucket, s3AccessKeyId, s3SecretAccessKey);
     }
     
     public void setInfuraId(String aInfuraId)
