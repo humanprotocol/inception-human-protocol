@@ -52,16 +52,16 @@ public class HumanSignatureValidationFilter
     public static final String ATTR_SIGNATURE_VALID = "io.github.reckart.inception."
             + "humanprotocol.security.HumanSignatureValidationFilter#signatureValue";
 
-    private String humanApiKey;
+    private String jobFlowKey;
 
     @Autowired
     public HumanSignatureValidationFilter(HumanProtocolProperties aProperties)
     {
-        if (ANY_KEY.equals(aProperties.getHumanApiKey())) {
-            humanApiKey = null;
+        if (ANY_KEY.equals(aProperties.getJobFlowKey())) {
+            jobFlowKey = null;
         }
         else {
-            humanApiKey = aProperties.getHumanApiKey();
+            jobFlowKey = aProperties.getJobFlowKey();
         }
     }
 
@@ -76,7 +76,7 @@ public class HumanSignatureValidationFilter
         }
 
         // If no secret key is set (i.e. any key is accepted), we always mark the signature as valid
-        if (humanApiKey == null) {
+        if (jobFlowKey == null) {
             SecurityContextHolder.getContext()
                     .setAuthentication(new PreAuthenticatedAuthenticationToken("HumanProtocol",
                             null, asList(new SimpleGrantedAuthority(ROLE_ADMIN.toString()))));
@@ -119,7 +119,7 @@ public class HumanSignatureValidationFilter
         throws ServletException, IOException
     {
         try {
-            String expected = generateHexSignature(humanApiKey, aPayload);
+            String expected = generateHexSignature(jobFlowKey, aPayload);
             if (!Objects.isEqual(expected, aSignature)) {
                 log.warn("Invalid signature. Expected [{}] but got [{}]. {} byte message", expected,
                         aSignature, aPayload.length);

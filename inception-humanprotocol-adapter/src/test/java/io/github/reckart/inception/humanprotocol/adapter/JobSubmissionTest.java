@@ -184,10 +184,10 @@ public class JobSubmissionTest
 
         inviteProperties.setInviteBaseUrl("http://nevermind:8080/inception");
 
-        hmtProperties.setHumanApiUrl(metaApiServer.url("/api").toString());
+        hmtProperties.setJobFlowUrl(metaApiServer.url("/api").toString());
         hmtProperties.setExchangeId(EXCHANGE_ID);
         hmtProperties.setExchangeKey(EXCHANGE_KEY);
-        hmtProperties.setHumanApiKey(HUMAN_API_KEY);
+        hmtProperties.setJobFlowKey(HUMAN_API_KEY);
 
         // @formatter:off
         mvc = MockMvcBuilders
