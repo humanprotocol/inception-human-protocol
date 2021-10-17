@@ -22,6 +22,7 @@ import static de.tudarmstadt.ukp.clarin.webanno.model.AnchoringMode.SENTENCES;
 import static de.tudarmstadt.ukp.clarin.webanno.model.AnchoringMode.TOKENS;
 import static de.tudarmstadt.ukp.clarin.webanno.model.OverlapMode.ANY_OVERLAP;
 import static de.tudarmstadt.ukp.clarin.webanno.model.OverlapMode.NO_OVERLAP;
+import static de.tudarmstadt.ukp.clarin.webanno.ui.annotation.sidebar.SidebarTabbedPanel.KEY_SIDEBAR_STATE;
 import static de.tudarmstadt.ukp.inception.sharing.model.Mandatoriness.NOT_ALLOWED;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_CHARACTERS;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_SENTENCES;
@@ -86,10 +87,13 @@ import de.tudarmstadt.ukp.clarin.webanno.model.Tag;
 import de.tudarmstadt.ukp.clarin.webanno.model.TagSet;
 import de.tudarmstadt.ukp.clarin.webanno.project.initializers.TokenLayerInitializer;
 import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
+import de.tudarmstadt.ukp.clarin.webanno.ui.annotation.sidebar.AnnotationSidebarState;
+import de.tudarmstadt.ukp.inception.preferences.PreferencesService;
 import de.tudarmstadt.ukp.inception.sharing.InviteService;
 import de.tudarmstadt.ukp.inception.sharing.model.ProjectInvite;
 import de.tudarmstadt.ukp.inception.ui.core.docanno.layer.DocumentMetadataLayerSupport;
 import de.tudarmstadt.ukp.inception.ui.core.docanno.layer.DocumentMetadataLayerTraits;
+import de.tudarmstadt.ukp.inception.ui.core.docanno.sidebar.DocumentMetadataSidebarFactory;
 import de.tudarmstadt.ukp.inception.workload.dynamic.DynamicWorkloadExtension;
 import de.tudarmstadt.ukp.inception.workload.dynamic.trait.DynamicWorkloadTraits;
 import de.tudarmstadt.ukp.inception.workload.model.WorkloadManagementService;
@@ -109,6 +113,8 @@ public class HumanProtocolProjectInitializer
     private @Autowired DynamicWorkloadExtension dynamicWorkload;
     private @Autowired InviteService inviteService;
     private @Autowired LayerSupportRegistry layerSupportRegistry;
+    private @Autowired PreferencesService prefService;
+    private @Autowired DocumentMetadataSidebarFactory documentMetadataSidebarFactory;
 
     private final JobManifest manifest;
 
@@ -354,6 +360,12 @@ public class HumanProtocolProjectInitializer
                 "Value", TYPE_NAME_STRING);
         tagset.ifPresent(stringFeature::setTagset);
         schemaService.createFeature(stringFeature);
+        
+        // Open the document annotation sidebar by default
+        AnnotationSidebarState sidebarState = new AnnotationSidebarState();
+        sidebarState.setSelectedTab(documentMetadataSidebarFactory.getBeanName());
+        sidebarState.setExpanded(true);
+        prefService.saveDefaultTraitsForProject(KEY_SIDEBAR_STATE, aProject, sidebarState);
     }
 
     private void initializeProjectDescription(Project aProject)
