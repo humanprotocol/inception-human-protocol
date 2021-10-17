@@ -108,7 +108,7 @@
                 <configuration>
                   <workingDirectory>${project.build.directory}/buildx</workingDirectory>
                   <executable>docker</executable>
-                  <commandlineArgs>buildx build --platform=linux/amd64 -t ${docker.image.name}:latest -t ${docker.image.name}:${project.version} .</commandlineArgs>
+                  <commandlineArgs>buildx build --load --platform=linux/amd64 -t ${docker.image.name}:latest -t ${docker.image.name}:${project.version} .</commandlineArgs>
                 </configuration>
               </execution>
             </executions>

@@ -36,10 +36,10 @@ public class HumanProtocolPropertiesImpl
     @Pattern(regexp = UUID_PATTERN, message = "Invalid UUID")
     private String exchangeKey;
 
-    private String humanApiUrl;
+    private String jobFlowUrl;
 
     @Pattern(regexp = "(" + UUID_PATTERN + ")|([" + ANY_KEY + "])", message = "Invalid UUID")
-    private String humanApiKey;
+    private String jobFlowKey;
 
     private String s3Region;
     private String s3Endpoint;
@@ -73,25 +73,25 @@ public class HumanProtocolPropertiesImpl
     }
 
     @Override
-    public String getHumanApiUrl()
+    public String getJobFlowUrl()
     {
-        return humanApiUrl;
+        return jobFlowUrl;
     }
 
-    public void setHumanApiUrl(String aUrl)
+    public void setJobFlowUrl(String aUrl)
     {
-        humanApiUrl = aUrl;
+        jobFlowUrl = aUrl;
     }
 
     @Override
-    public String getHumanApiKey()
+    public String getJobFlowKey()
     {
-        return humanApiKey;
+        return jobFlowKey;
     }
 
-    public void setHumanApiKey(String aKey)
+    public void setJobFlowKey(String aKey)
     {
-        humanApiKey = aKey;
+        jobFlowKey = aKey;
     }
 
     @Override
@@ -152,7 +152,7 @@ public class HumanProtocolPropertiesImpl
     @Override
     public boolean isS3BucketInformationAvailable()
     {
-        return isNoneBlank(s3Endpoint, s3Bucket, s3AccessKeyId, s3SecretAccessKey);
+        return isNoneBlank(s3Endpoint, s3Region, s3Bucket, s3AccessKeyId, s3SecretAccessKey);
     }
     
     public void setInfuraId(String aInfuraId)

@@ -215,10 +215,10 @@ public class ResultsSubmissionTest
         metaApiServer = new MockWebServer();
         metaApiServer.start();
 
-        hmtProperties.setHumanApiUrl(metaApiServer.url("/api").toString());
+        hmtProperties.setJobFlowUrl(metaApiServer.url("/api").toString());
         hmtProperties.setExchangeId(EXCHANGE_ID);
         hmtProperties.setExchangeKey(EXCHANGE_KEY);
-        hmtProperties.setHumanApiKey(HUMAN_API_KEY);
+        hmtProperties.setJobFlowKey(HUMAN_API_KEY);
         hmtProperties.setS3Bucket(BUCKET);
 
         // We set dummy values for the following parameters so that isS3BucketInformationAvailable()

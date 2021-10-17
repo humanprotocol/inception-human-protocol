@@ -2,7 +2,7 @@
 
 ## Settings
 
-This section briefly explains the recommended settings for INCEpTION when deploying to interact with HUMAN protocol. 
+This section briefly explains the recommended settings for INCEpTION when deploying to interact with HUMAN Protocol. 
 
 ### General settings for unsupervised deployment
 
@@ -16,7 +16,7 @@ security.default-admin-password=BCRYPT_ENCRYPTED_PASSWORD
 ```
 
 .Enabling the INCEpTION remote API (optional)
-Optionally, you can enable the INCEpTION remote API for the default admin user by adding these following lines to the `settings.properties` file. The communication with the HUMAN protocol uses its own API endpoints, so enabling the standard remote API is optional. However, it can be useful if you want to programmatically perform actions not available via the HUMAN API endpoints.
+Optionally, you can enable the INCEpTION remote API for the default admin user by adding these following lines to the `settings.properties` file. The communication with the HUMAN Protocol uses its own API endpoints, so enabling the standard remote API is optional. However, it can be useful if you want to programmatically perform actions not available via the HUMAN Protocol API endpoints.
 
 ```
 security.default-admin-remote-access=true
@@ -31,7 +31,7 @@ login.max-concurrent-sessions=50
 ```
 
 .Enable crowd-sourcing annotation workflow
-In the context of the HUMAN protocol, we use a crowd-sourcing workflow where you send out invites to potential annotators and then assign them on-demand to annotate particular documents. Thus, add the following lines to your `settings.properties` file to enable dynamic workload management and the ability to generate invite links.
+In the context of the HUMAN Protocol, a crowd-sourcing workflow is used where invites are send out to potential annotators and then assign them on-demand to annotate particular documents. Thus, add the following lines to your `settings.properties` file to enable dynamic workload management and the ability to generate invite links.
 
 ```
 workload.dynamic.enabled=true
@@ -42,7 +42,7 @@ sharing.invites.invite-base-url=URL_WHERE_USERS_CAN_REACH_INCEPTION
 
 ### Settings for the HUMAN Protocol
 
-This section highlights the settings required to communicate with services using the HUMAN protocol.
+This section highlights the settings required to communicate with services using the HUMAN Protocol.
 
 #### Wallet-based login
 
@@ -55,16 +55,16 @@ human-protocol.infura-id=dead1234beefDEAD5678BEEFdead1234
 
 #### Receiving jobs from the HUMAN Protocol
 
-To enable the submission of jobs from HUMAN to INCEpTION, it is necessary to configure INCEpTION as an *exchange* and to bind it to an instance of the *HUMAN API*. You may obtain the values for the following settings from a support person on the side of the HUMAN Foundation and add them to the `settings.properties` file.
+To enable the submission of jobs from HUMAN to INCEpTION, it is necessary to configure INCEpTION as an *exchange* and to bind it to an instance of the *HUMAN Protocol Job Flow*. You may obtain the values for the following settings from a support person on the side of the HUMAN Protocol and add them to the `settings.properties` file.
 
 ```
 human-protocol.exchange-key=UUID
 human-protocol.exchange-id=NUMBER
-human-protocol.human-api-url=URL
-human-protocol.human-api-key=UUID
+human-protocol.job-flow-url=URL
+human-protocol.job-flow-key=UUID
 ```
 
-#### Publishing results back to the HUMAN protocol
+#### Publishing results back to the HUMAN Protocol
 
 ====
 WARNING: Results are currently published as a full INCEpTION project export which contains all information about the project setup and also the annotations themselves in UIMA CAS XMI format. This is likely going to change.
