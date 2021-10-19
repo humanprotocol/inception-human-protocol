@@ -371,21 +371,11 @@ public class HumanProtocolProjectInitializer
 
     private void initializeProjectDescription(Project aProject)
     {
-        StringBuilder description = new StringBuilder();
-
-        if (isNotBlank(manifest.getRequesterDescription())) {
-            description.append("#### Requester Description\n");
-            description.append(manifest.getRequesterDescription());
-            description.append("\n\n");
+        if (manifest.getRequesterQuestion() == null) {
+            return;
         }
 
-        if (isNotBlank(manifest.getRequesterQuestion().getOrDefault("en", ""))) {
-            description.append("#### Requester Question\n");
-            description.append(manifest.getRequesterQuestion().getOrDefault("en", ""));
-            description.append("\n\n");
-        }
-
-        aProject.setDescription(description.toString());
+        aProject.setDescription(manifest.getRequesterQuestion().getOrDefault("en", ""));
     }
 
     private Optional<TagSet> initializeTagset(Project aProject)
