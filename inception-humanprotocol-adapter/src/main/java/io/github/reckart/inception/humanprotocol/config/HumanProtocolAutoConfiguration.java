@@ -40,11 +40,14 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 
 import com.giffing.wicket.spring.boot.context.extensions.WicketApplicationInitConfiguration;
 
+import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
 import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryProperties;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportService;
 import de.tudarmstadt.ukp.clarin.webanno.project.config.ProjectServiceAutoConfiguration;
+import de.tudarmstadt.ukp.inception.curation.service.CurationDocumentService;
+import de.tudarmstadt.ukp.inception.curation.service.CurationMergeService;
 import de.tudarmstadt.ukp.inception.sharing.InviteService;
 import de.tudarmstadt.ukp.inception.sharing.config.InviteServiceAutoConfiguration;
 import io.github.reckart.inception.humanprotocol.HumanProtocolAcceptInvitePageOverride;
@@ -93,20 +96,19 @@ public class HumanProtocolAutoConfiguration
                     .sessionCreationPolicy(STATELESS);
             // @formatter:on
         }
-    }    
-    
+    }
+
     @Bean
     public HumanProtocolController humanProtocolController(ApplicationContext aApplicationContext,
             ProjectService aProjectService, HumanProtocolService aHmtService)
     {
         return new HumanProtocolControllerImpl(aApplicationContext, aProjectService, aHmtService);
     }
-    
+
     @Bean
     public GroupedOpenApi humanProtocolDocket()
     {
-        return GroupedOpenApi.builder().group("human-protocol")
-                .pathsToMatch(API_BASE + "/**") //
+        return GroupedOpenApi.builder().group("human-protocol").pathsToMatch(API_BASE + "/**") //
                 .addOpenApiCustomiser(openApi -> { //
                     openApi.info(new Info() //
                             .title("Human Protocol API") //
@@ -123,20 +125,25 @@ public class HumanProtocolAutoConfiguration
         registration.addUrlPatterns(API_BASE + "/*");
         return registration;
     }
-    
+
     @Bean
-    public HumanSignatureValidationFilter humanSignatureValidationFilter(HumanProtocolProperties aProperties) {
+    public HumanSignatureValidationFilter humanSignatureValidationFilter(
+            HumanProtocolProperties aProperties)
+    {
         return new HumanSignatureValidationFilter(aProperties);
     }
 
     @Bean
     public HumanProtocolService humanProtocolService(RepositoryProperties aRepositoryProperties,
             ProjectExportService aProjectExportService, ProjectService aProjectService,
-            DocumentService aDocumentService, InviteService aInviteService,
+            DocumentService aDocumentService, AnnotationSchemaService aAnnotationService,
+            CurationMergeService aCurationMergeService,
+            CurationDocumentService aCurationDocumentService, InviteService aInviteService,
             HumanProtocolProperties aHmtProperties, @Autowired(required = false) S3Client aS3Client)
     {
         return new HumanProtocolServiceImpl(aProjectExportService, aInviteService, aProjectService,
-                aDocumentService, aS3Client, aRepositoryProperties, aHmtProperties);
+                aDocumentService, aAnnotationService, aCurationMergeService,
+                aCurationDocumentService, aS3Client, aRepositoryProperties, aHmtProperties);
     }
 
     @ConditionalOnMissingBean
@@ -147,7 +154,7 @@ public class HumanProtocolAutoConfiguration
             LOG.warn("No S3 region was specified - disabling S3 functionality");
             return null;
         }
-        
+
         S3ClientBuilder builder = S3Client.builder();
         builder.region(Region.of(aHmtProperties.getS3Region()));
         if (aHmtProperties.getS3Endpoint() != null) {
@@ -156,12 +163,13 @@ public class HumanProtocolAutoConfiguration
         builder.credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials
                 .create(aHmtProperties.getS3AccessKeyId(), aHmtProperties.getS3SecretAccessKey())));
         builder.httpClient(ApacheHttpClient.builder().build());
-        
+
         return builder.build();
     }
-    
+
     @Bean
-    public WicketApplicationInitConfiguration overrideInvitationPage() {
+    public WicketApplicationInitConfiguration overrideInvitationPage()
+    {
         return new HumanProtocolAcceptInvitePageOverride();
     }
 }
