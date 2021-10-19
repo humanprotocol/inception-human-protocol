@@ -16,23 +16,28 @@
  */
 package io.github.reckart.inception.humanprotocol.adapter;
 
+import static de.tudarmstadt.ukp.clarin.webanno.api.WebAnnoConst.CURATION_USER;
 import static de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocumentState.FINISHED;
-import static de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocumentState.IN_PROGRESS;
 import static de.tudarmstadt.ukp.clarin.webanno.model.PermissionLevel.ANNOTATOR;
 import static de.tudarmstadt.ukp.clarin.webanno.model.ProjectState.ANNOTATION_FINISHED;
 import static de.tudarmstadt.ukp.clarin.webanno.model.ProjectState.ANNOTATION_IN_PROGRESS;
 import static de.tudarmstadt.ukp.clarin.webanno.security.model.Role.ROLE_USER;
 import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.fromJsonString;
 import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_USERNAME;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.CUSTOM_SPAN_LAYER;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_EXCHANGE_SIGNATURE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.JOB_RESULTS_ENDPOINT;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.TASK_TYPE_SPAN_SELECT;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.VALUE_FEATURE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolService.RESULTS_KEY_SUFFIX;
 import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateHexSignature;
 import static java.lang.String.format;
 import static java.lang.String.join;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
+import static org.apache.uima.fit.util.FSUtil.getFeature;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.MOCK;
 
 import java.io.ByteArrayInputStream;
@@ -45,7 +50,14 @@ import java.util.function.Supplier;
 import java.util.zip.ZipFile;
 
 import org.apache.commons.io.IOUtils;
-import org.junit.jupiter.api.BeforeAll;
+import org.apache.uima.UIMAException;
+import org.apache.uima.cas.CAS;
+import org.apache.uima.cas.CASException;
+import org.apache.uima.cas.Type;
+import org.apache.uima.cas.text.AnnotationFS;
+import org.apache.uima.fit.util.FSUtil;
+import org.apache.uima.jcas.tcas.Annotation;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,26 +65,32 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.annotation.DirtiesContext.ClassMode;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.util.FileSystemUtils;
 
 import com.adobe.testing.s3mock.junit5.S3MockExtension;
 
+import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
 import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.annotationservice.config.AnnotationSchemaServiceAutoConfiguration;
+import de.tudarmstadt.ukp.clarin.webanno.api.dao.casstorage.CasStorageSession;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.casstorage.config.CasStorageServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.documentservice.config.DocumentServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.event.ProjectStateChangedEvent;
@@ -80,8 +98,10 @@ import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportException;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportService;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectImportRequest;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocument;
+import de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocumentState;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
 import de.tudarmstadt.ukp.clarin.webanno.model.SourceDocument;
+import de.tudarmstadt.ukp.clarin.webanno.model.SourceDocumentState;
 import de.tudarmstadt.ukp.clarin.webanno.project.config.ProjectServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.project.initializers.config.ProjectInitializersAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.security.UserDao;
@@ -94,10 +114,13 @@ import de.tudarmstadt.ukp.inception.curation.config.CurationDocumentServiceAutoC
 import de.tudarmstadt.ukp.inception.curation.config.CurationServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.export.config.DocumentImportExportServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.project.export.config.ProjectExportServiceAutoConfiguration;
+import de.tudarmstadt.ukp.inception.scheduling.config.SchedulingServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.sharing.config.InviteServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.ui.core.dashboard.config.DashboardAutoConfiguration;
 import de.tudarmstadt.ukp.inception.ui.core.docanno.config.DocumentMetadataLayerSupportAutoConfiguration;
+import de.tudarmstadt.ukp.inception.workload.config.WorkloadManagementAutoConfiguration;
 import de.tudarmstadt.ukp.inception.workload.dynamic.config.DynamicWorkloadManagerAutoConfiguration;
+import io.github.reckart.inception.humanprotocol.HumanProtocolProjectInitializer;
 import io.github.reckart.inception.humanprotocol.HumanProtocolServiceImpl;
 import io.github.reckart.inception.humanprotocol.config.HumanProtocolAutoConfiguration;
 import io.github.reckart.inception.humanprotocol.config.HumanProtocolPropertiesImpl;
@@ -133,7 +156,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
                 "sharing.invites.enabled=true" })
 @EnableWebSecurity
 @Import({ //
-        SecurityAutoConfiguration.class, //
+        SchedulingServiceAutoConfiguration.class, SecurityAutoConfiguration.class, //
         CasStorageServiceAutoConfiguration.class, //
         AnnotationSchemaServiceAutoConfiguration.class, //
         DocumentMetadataLayerSupportAutoConfiguration.class, //
@@ -148,6 +171,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
         "de.tudarmstadt.ukp.inception", //
         "de.tudarmstadt.ukp.clarin.webanno.model", //
         "de.tudarmstadt.ukp.clarin.webanno.security.model" })
+@DirtiesContext(classMode = ClassMode.BEFORE_EACH_TEST_METHOD)
 public class ResultsSubmissionTest
 {
     static final String TEST_OUTPUT_FOLDER = "target/test-output/ResultsSubmissionTest";
@@ -155,6 +179,7 @@ public class ResultsSubmissionTest
     @RegisterExtension
     static final S3MockExtension S3_MOCK = S3MockExtension.builder().silent()
             .withProperty("spring.autoconfigure.exclude", join(",", //
+                    SchedulingServiceAutoConfiguration.class.getName(), //
                     CurationServiceAutoConfiguration.class.getName(), //
                     DocumentMetadataLayerSupportAutoConfiguration.class.getName(), //
                     HumanProtocolAutoConfiguration.class.getName(), //
@@ -170,10 +195,10 @@ public class ResultsSubmissionTest
                     CurationDocumentServiceAutoConfiguration.class.getName(), //
                     LiquibaseAutoConfiguration.class.getName(), //
                     DashboardAutoConfiguration.class.getName(), //
+                    WorkloadManagementAutoConfiguration.class.getName(), //
                     DynamicWorkloadManagerAutoConfiguration.class.getName(), //
                     InviteServiceAutoConfiguration.class.getName()))
             .withSecureConnection(false).build();
-    private final S3Client s3Client = S3_MOCK.createS3ClientV2();
 
     private static final String EXCHANGE_KEY = "de85eb7e-aea9-11eb-8529-0242ac130003";
     static final String HUMAN_API_KEY = "e984c52c-aea9-11eb-8529-0242ac130003";
@@ -192,7 +217,10 @@ public class ResultsSubmissionTest
     private @Autowired HumanProtocolPropertiesImpl hmtProperties;
     private @Autowired ApplicationEventPublisher applicationEventPublisher;
     private @Autowired ProjectExportService projectExportService;
+    private @Autowired ApplicationContext applicationContext;
+    private @Autowired AnnotationSchemaService annotationService;
 
+    private S3Client s3Client;
     private MockWebServer metaApiServer;
 
     // If this is not static, for some reason the value is re-set to false before a
@@ -201,15 +229,11 @@ public class ResultsSubmissionTest
     // in the DB and clean the test repository once!
     private static boolean initialized = false;
 
-    @BeforeAll
-    public static void setupClass()
-    {
-        FileSystemUtils.deleteRecursively(new File(TEST_OUTPUT_FOLDER));
-    }
-
     @BeforeEach
     public void setup() throws Exception
     {
+        FileSystemUtils.deleteRecursively(new File(TEST_OUTPUT_FOLDER));
+
         MDC.put(KEY_USERNAME, "USERNAME");
 
         metaApiServer = new MockWebServer();
@@ -234,19 +258,30 @@ public class ResultsSubmissionTest
             userRepository.create(new User("admin", Role.ROLE_ADMIN));
             initialized = true;
         }
+
+        s3Client = S3_MOCK.createS3ClientV2();
+        s3Client.createBucket(CreateBucketRequest.builder().bucket(BUCKET).build());
+    }
+
+    @AfterEach
+    public void teardown() throws Exception
+    {
+        s3Client.close();
+        metaApiServer.close();
     }
 
     @Test
-    void thatUploadIsTriggeredOnAnnotationsComplete() throws Exception
+    public void thatUploadIsTriggeredOnAnnotationsComplete() throws Exception
     {
-        s3Client.createBucket(CreateBucketRequest.builder().bucket(BUCKET).build());
+        JobManifest jobManifest = new JobManifest();
+        jobManifest.setRequestType(TASK_TYPE_SPAN_SELECT);
+        Project project = prepareProject(jobManifest);
 
         // Expect results submission message
         metaApiServer.enqueue(new MockResponse().setResponseCode(200));
 
-        Project project = prepareProject();
-
         // Trigger project submissions via event
+        project.setState(ANNOTATION_FINISHED);
         applicationEventPublisher
                 .publishEvent(new ProjectStateChangedEvent(this, project, ANNOTATION_IN_PROGRESS));
 
@@ -257,14 +292,15 @@ public class ResultsSubmissionTest
 
         // Validate invite link notification
         RecordedRequest jobResultsNotificationRequest = metaApiServer.takeRequest();
+        String serializedNotification = jobResultsNotificationRequest.getBody().readUtf8();
         assertThat(jobResultsNotificationRequest.getPath()) //
                 .as("Invite link notification recieved") //
                 .endsWith(JOB_RESULTS_ENDPOINT);
-        String serializedNotification = jobResultsNotificationRequest.getBody().readUtf8();
         assertThat(jobResultsNotificationRequest.getHeader(HEADER_X_EXCHANGE_SIGNATURE))
                 .isEqualTo(generateHexSignature(EXCHANGE_KEY, serializedNotification));
         assertThat(jobResultsNotificationRequest.getHeader(HttpHeaders.CONTENT_TYPE))
                 .isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+
         JobResultSubmission notification = fromJsonString(JobResultSubmission.class,
                 serializedNotification);
         assertThat(notification.getJobAddress()).isEqualTo(JOB_ADDRESS);
@@ -273,49 +309,154 @@ public class ResultsSubmissionTest
         assertThat(notification.getJobData().toString())
                 .endsWith(format("/%s/%s/results.zip", hmtProperties.getS3Bucket(), JOB_ADDRESS));
         assertThat(notification.getPayouts()) //
-                .usingFieldByFieldElementComparator() //
+                .usingRecursiveFieldByFieldElementComparator() //
                 .containsExactly( //
-                        new PayoutItem("anno1", "doc1"), //
-                        new PayoutItem("anno2"));
+                        new PayoutItem("anno1", "doc1", "doc2"), //
+                        new PayoutItem("anno2", "doc1", "doc2"));
     }
 
-    private Project prepareProject() throws Exception
+    @Test
+    public void thatAutoMergingIsPerformedBeforeSubmission() throws Exception
+    {
+        JobManifest jobManifest = new JobManifest();
+        jobManifest.setRequesterAccuracyTarget(0.75d);
+        jobManifest.setRequestType(TASK_TYPE_SPAN_SELECT);
+        Project project = prepareProject(jobManifest);
+
+        SourceDocument doc1 = documentService.getSourceDocument(project, "doc1");
+        SourceDocument doc2 = documentService.getSourceDocument(project, "doc2");
+
+        try (var session = CasStorageSession.open()) {
+            addCustomSpanAnnotation(doc1, "anno1", "X");
+            addCustomSpanAnnotation(doc1, "anno2", "X");
+            addCustomSpanAnnotation(doc2, "anno1", "X");
+            addCustomSpanAnnotation(doc2, "anno2", "Y");
+        }
+
+        assertThat(documentService.listAnnotationDocuments(project)) //
+                .extracting( //
+                        AnnotationDocument::getName, //
+                        AnnotationDocument::getUser, //
+                        AnnotationDocument::getState)
+                .containsExactly( //
+                        tuple("doc1", "anno1", AnnotationDocumentState.FINISHED),
+                        tuple("doc1", "anno2", AnnotationDocumentState.FINISHED),
+                        tuple("doc2", "anno1", AnnotationDocumentState.FINISHED),
+                        tuple("doc2", "anno2", AnnotationDocumentState.FINISHED));
+
+        // Expect results submission message
+        metaApiServer.enqueue(new MockResponse().setResponseCode(200));
+
+        // Trigger project submissions via event
+        project.setState(ANNOTATION_FINISHED);
+        applicationEventPublisher
+                .publishEvent(new ProjectStateChangedEvent(this, project, ANNOTATION_IN_PROGRESS));
+
+        // Validate that the submitted results are as expected
+        Project copyOfProject = fetchProjectFromBucket();
+
+        assertThat(annotationService.findLayer(copyOfProject, CUSTOM_SPAN_LAYER)).isNotNull();
+
+        SourceDocument copyDoc1 = documentService.getSourceDocument(copyOfProject, "doc1");
+        SourceDocument copyDoc2 = documentService.getSourceDocument(copyOfProject, "doc2");
+
+        assertThat(documentService.listSourceDocuments(copyOfProject))
+                .extracting(SourceDocument::getName, SourceDocument::getState).containsExactly( //
+                        tuple("doc1", SourceDocumentState.CURATION_FINISHED), //
+                        tuple("doc2", SourceDocumentState.CURATION_FINISHED));
+
+        try (var session = CasStorageSession.open()) {
+            CAS curatedCas1 = documentService.readAnnotationCas(copyDoc1, CURATION_USER);
+            Type spanType1 = curatedCas1.getTypeSystem().getType(CUSTOM_SPAN_LAYER);
+            assertThat(spanType1).isNotNull();
+            assertThat(curatedCas1.<Annotation> select(spanType1).asList()) //
+                    .extracting( //
+                            Annotation::getCoveredText, //
+                            a -> getFeature(a, VALUE_FEATURE, String.class))
+                    .containsExactly( //
+                            tuple("Test.", "X"));
+
+            CAS curatedCas2 = documentService.readAnnotationCas(copyDoc2, CURATION_USER);
+            Type spanType2 = curatedCas2.getTypeSystem().getType(CUSTOM_SPAN_LAYER);
+            assertThat(spanType2).isNotNull();
+            assertThat(curatedCas2.<Annotation> select(spanType2).asList()) //
+                    .extracting( //
+                            Annotation::getCoveredText, //
+                            a -> getFeature(a, VALUE_FEATURE, String.class))
+                    .isEmpty();
+        }
+    }
+
+    private void addCustomSpanAnnotation(SourceDocument aDoc, String aUser, String aLabel)
+        throws IOException, CASException
+    {
+        CAS cas = documentService.readAnnotationCas(aDoc, aUser);
+        Type spanType = cas.getTypeSystem().getType(CUSTOM_SPAN_LAYER);
+        AnnotationFS annotation = cas.createAnnotation(spanType, 0, cas.getDocumentText().length());
+        FSUtil.setFeature(annotation, "value", aLabel);
+        cas.addFsToIndexes(annotation);
+        documentService.writeAnnotationCas(cas, aDoc, aUser, false);
+    }
+
+    private Project prepareProject(JobManifest aJobManifest) throws Exception
     {
         Project project = new Project("test");
-        project.setState(ANNOTATION_FINISHED);
         projectService.createProject(project);
-
-        JobManifest jobManifest = new JobManifest();
-        hmtService.writeJobManifest(project, jobManifest);
 
         JobRequest jobRequest = new JobRequest();
         jobRequest.setJobAddress(JOB_ADDRESS);
         jobRequest.setNetworkId(NETWORK_ID);
         hmtService.writeJobRequest(project, jobRequest);
 
-        User anno1 = userRepository.create(new User("anno1", ROLE_USER));
-        User anno2 = userRepository.create(new User("anno2", ROLE_USER));
+        hmtService.writeJobManifest(project, aJobManifest);
 
-        projectService.setProjectPermissionLevels(anno1, project, asList(ANNOTATOR));
-        projectService.setProjectPermissionLevels(anno2, project, asList(ANNOTATOR));
+        HumanProtocolProjectInitializer initializer = new HumanProtocolProjectInitializer(
+                aJobManifest);
+        AutowireCapableBeanFactory factory = applicationContext.getAutowireCapableBeanFactory();
+        factory.autowireBean(initializer);
+        factory.initializeBean(initializer, "transientInitializer");
+        projectService.initializeProject(project, asList(initializer));
 
-        SourceDocument doc1 = documentService
-                .createSourceDocument(new SourceDocument("doc1", project, TextFormatSupport.ID));
-        SourceDocument doc2 = documentService
-                .createSourceDocument(new SourceDocument("doc2", project, TextFormatSupport.ID));
+        User anno1 = createAnnotatorUser(project, "anno1");
+        User anno2 = createAnnotatorUser(project, "anno2");
 
-        Supplier<InputStream> testDocumentStream = () -> new ByteArrayInputStream(
-                "Test.".getBytes(UTF_8));
-        AnnotationDocument annDoc1 = new AnnotationDocument(anno1.getUsername(), doc1);
-        annDoc1.setState(FINISHED);
-        documentService.createAnnotationDocument(annDoc1);
-        documentService.uploadSourceDocument(testDocumentStream.get(), doc1);
-        AnnotationDocument annDoc2 = new AnnotationDocument(anno2.getUsername(), doc2);
-        annDoc2.setState(IN_PROGRESS);
-        documentService.createAnnotationDocument(annDoc2);
-        documentService.uploadSourceDocument(testDocumentStream.get(), doc2);
+        SourceDocument doc1 = createSourceDocument(project, "doc1", "Test.");
+        createAnnotationDocument(doc1, anno1, FINISHED);
+        createAnnotationDocument(doc1, anno2, FINISHED);
+
+        SourceDocument doc2 = createSourceDocument(project, "doc2", "Test.");
+        createAnnotationDocument(doc2, anno1, FINISHED);
+        createAnnotationDocument(doc2, anno2, FINISHED);
 
         return project;
+    }
+
+    private User createAnnotatorUser(Project aProject, String aUsername)
+    {
+        User anno = userRepository.create(new User(aUsername, ROLE_USER));
+        projectService.setProjectPermissionLevels(anno, aProject, asList(ANNOTATOR));
+        return anno;
+    }
+
+    private SourceDocument createSourceDocument(Project aProject, String aDocumentName,
+            String aDocumentText)
+        throws IOException, UIMAException
+    {
+        Supplier<InputStream> testDocumentStream = () -> new ByteArrayInputStream(
+                aDocumentText.getBytes(UTF_8));
+        SourceDocument doc = documentService.createSourceDocument(
+                new SourceDocument(aDocumentName, aProject, TextFormatSupport.ID));
+        documentService.uploadSourceDocument(testDocumentStream.get(), doc);
+        return doc;
+    }
+
+    private AnnotationDocument createAnnotationDocument(SourceDocument aDocument, User aAnnotator,
+            AnnotationDocumentState aState)
+    {
+        AnnotationDocument annDoc = new AnnotationDocument(aAnnotator.getUsername(), aDocument);
+        annDoc.setState(aState);
+        documentService.createAnnotationDocument(annDoc);
+        return annDoc;
     }
 
     private Project fetchProjectFromBucket() throws IOException, ProjectExportException

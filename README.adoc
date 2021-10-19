@@ -179,8 +179,9 @@ For example, the annotator might be instructed to flag documents (e.g. tweets or
 }
 ```
 
-#### Request types and request configuration parameters
+#### Manifest settings
 
+.Request types
 |====
 | Request type | Description
 
@@ -189,9 +190,30 @@ For example, the annotator might be instructed to flag documents (e.g. tweets or
 
 | `document_classification`
 | Labelling of the entire document. Use this e.g. for marking emails as spam or other tasks for which you could train a document classification model.
+|====
+
+.Workload parameters (top-level manifest parameters)
+|====
+| Parameter | Request type | Description
+
+| `requester_min_repeats`
+| any
+| Number of annotators that need to finish a labelling a document before the document is considered to be fully labelled (default: `1`). The value must be `1` or greater.
+
+| `requester_max_repeats`
+| any
+| This parameter is currently ignored.
+
+.2+| `requester_accuracy_target`
+| `span_select`
+| If set to a decimal value between `0.0` and `1.0`, the annotators labels are merged automatically before the result submission. If unset (default), no automatic merging is performed as part of the results submisson. If there is more than one label assigned to a span, then this parameter controls how many annotators must have chosen the majority label over the second-best label in order for the majority label to be considered for auto-merging. If this parameter is `0`, then the majority label is always merged except if there is a tie with the second-best label. If the parameter is `1` then the majority label is used only if all annotators assigned it unanimously (i.e. there is no second-best label).
+
+| `document_classification`
+| For document classification tasks, this parameter is currently ignored.
 
 |====
 
+.Request configuration parameters
 |====
 | Request configuration parameter | Request type | Description
 
@@ -214,7 +236,6 @@ For example, the annotator might be instructed to flag documents (e.g. tweets or
 | `overlap`
 | `span_select`
 | Whether annotations may overlap. Possible values are `none` and `any` (default: `none`). Allowing overlapping annotations also allows placing multiple annotations at the same location (stacking) which is useful if the labelling task allows for ambiguities or multiple answers.
-
 |====
 
 ### Task data

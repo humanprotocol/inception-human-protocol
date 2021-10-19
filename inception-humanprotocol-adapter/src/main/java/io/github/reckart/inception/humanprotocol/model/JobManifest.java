@@ -18,12 +18,18 @@ package io.github.reckart.inception.humanprotocol.model;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.OptionalDouble;
+
+import org.apache.commons.lang3.Validate;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(Include.NON_DEFAULT)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class JobManifest
 {
@@ -31,14 +37,12 @@ public class JobManifest
 
     private InternationalizedStrings requesterQuestion;
     private String requesterDescription;
-    private int requesterMinRepeats;
+    private int requesterMinRepeats = 1;
     private int requesterMaxRepeats;
-    private double requesterAccuracyTarget;
+    private Double requesterAccuracyTarget;
     private Map<String, InternationalizedStrings> requesterRestrictedAnswerSet;
 
     private long expirationDate;
-
-    private String taskBidPrice;
 
     private String requestType;
     private Map<String, Object> requestConfig;
@@ -88,10 +92,12 @@ public class JobManifest
 
     /**
      * @param aRequesterMinRepeats
-     *            max # of answers to collect per task (optional)
+     *            min # of answers to collect per task (optional)
      */
     public void setRequesterMinRepeats(int aRequesterMinRepeats)
     {
+        Validate.inclusiveBetween(1, Integer.MAX_VALUE, aRequesterMinRepeats);
+        
         requesterMinRepeats = aRequesterMinRepeats;
     }
 
@@ -106,16 +112,36 @@ public class JobManifest
      */
     public void setRequesterMaxRepeats(int aRequesterMaxRepeats)
     {
+        Validate.inclusiveBetween(1, Integer.MAX_VALUE, aRequesterMaxRepeats);
+        
         requesterMaxRepeats = aRequesterMaxRepeats;
     }
 
-    public double getRequesterAccuracyTarget()
+    public Double getRequesterAccuracyTarget()
     {
         return requesterAccuracyTarget;
     }
-
-    public void setRequesterAccuracyTarget(double aRequesterAccuracyTarget)
+    
+    public OptionalDouble requesterAccuracyTarget()
     {
+        if (requesterAccuracyTarget == null) {
+            return OptionalDouble.empty();
+        }
+        
+        return OptionalDouble.of(requesterAccuracyTarget);
+    }
+
+    /**
+     * @param aRequesterAccuracyTarget
+     *            0-1 - stop asking when min repeats is met and task accuracy exceeds this target.
+     *            (optional)
+     */
+    public void setRequesterAccuracyTarget(Double aRequesterAccuracyTarget)
+    {
+        if (aRequesterAccuracyTarget != null) {
+            Validate.inclusiveBetween(0.0d, 1.0d, (double) aRequesterAccuracyTarget);
+        }
+        
         requesterAccuracyTarget = aRequesterAccuracyTarget;
     }
 
@@ -135,19 +161,14 @@ public class JobManifest
         return expirationDate;
     }
 
+    /**
+     * @param aExpirationDate expiration date, expressed in seconds (UTC epoch time)
+     */
     public void setExpirationDate(long aExpirationDate)
     {
+        Validate.inclusiveBetween(0, Long.MAX_VALUE, aExpirationDate);
+        
         expirationDate = aExpirationDate;
-    }
-
-    public String getTaskBidPrice()
-    {
-        return taskBidPrice;
-    }
-
-    public void setTaskBidPrice(String aTaskBidPrice)
-    {
-        taskBidPrice = aTaskBidPrice;
     }
 
     public String getTaskdataUri()
