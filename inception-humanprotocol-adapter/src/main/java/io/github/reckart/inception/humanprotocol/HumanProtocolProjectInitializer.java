@@ -27,6 +27,7 @@ import static de.tudarmstadt.ukp.inception.sharing.model.Mandatoriness.NOT_ALLOW
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_CHARACTERS;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_SENTENCES;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_TOKENS;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.CUSTOM_SPAN_LAYER;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.OVERLAP_ANY;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.OVERLAP_NONE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.REQUEST_CONFIG_DATA_FORMAT;
@@ -36,6 +37,7 @@ import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.R
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.TASK_TYPE_DOCUMENT_CLASSIFICATION;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.TASK_TYPE_SPAN_SELECT;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.VALID_URI_SCHEMES;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.VALUE_FEATURE;
 import static java.io.File.createTempFile;
 import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
@@ -46,7 +48,6 @@ import static java.util.Arrays.asList;
 import static java.util.Calendar.MONTH;
 import static org.apache.commons.codec.digest.DigestUtils.sha256Hex;
 import static org.apache.commons.io.FilenameUtils.getExtension;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.uima.cas.CAS.TYPE_NAME_STRING;
 
 import java.io.File;
@@ -85,6 +86,7 @@ import de.tudarmstadt.ukp.clarin.webanno.model.Project;
 import de.tudarmstadt.ukp.clarin.webanno.model.SourceDocument;
 import de.tudarmstadt.ukp.clarin.webanno.model.Tag;
 import de.tudarmstadt.ukp.clarin.webanno.model.TagSet;
+import de.tudarmstadt.ukp.clarin.webanno.project.initializers.SentenceLayerInitializer;
 import de.tudarmstadt.ukp.clarin.webanno.project.initializers.TokenLayerInitializer;
 import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
 import de.tudarmstadt.ukp.clarin.webanno.ui.annotation.sidebar.AnnotationSidebarState;
@@ -138,7 +140,7 @@ public class HumanProtocolProjectInitializer
     @Override
     public List<Class<? extends ProjectInitializer>> getDependencies()
     {
-        return asList(TokenLayerInitializer.class);
+        return asList(TokenLayerInitializer.class, SentenceLayerInitializer.class);
     }
 
     @Override
@@ -190,10 +192,9 @@ public class HumanProtocolProjectInitializer
     private void enforceAcceptedUriScheme(URI aUri) throws IOException
     {
         if (!hasAcceptedUriScheme(aUri)) {
-            throw new IOException(format(
-                    "URI [%s] has the scheme [%s] which is not accepted. Only one of [%s] "
-                            + "are valid.",
-                            aUri, aUri.getScheme(), join(", ", VALID_URI_SCHEMES)));
+            throw new IOException(
+                    format("URI [%s] has the scheme [%s] which is not accepted. Only one of [%s] "
+                            + "are valid.", aUri, aUri.getScheme(), join(", ", VALID_URI_SCHEMES)));
         }
     }
 
@@ -282,7 +283,7 @@ public class HumanProtocolProjectInitializer
         DynamicWorkloadTraits traits = dynamicWorkload.readTraits(mgr);
         traits.setAbandonationTimeout(Duration.of(24, HOURS));
         traits.setAbandonationState(AnnotationDocumentState.IGNORE);
-        traits.setDefaultNumberOfAnnotations(1);
+        traits.setDefaultNumberOfAnnotations(manifest.getRequesterMinRepeats());
         workloadService.saveConfiguration(mgr);
     }
 
@@ -295,7 +296,7 @@ public class HumanProtocolProjectInitializer
 
         AnchoringMode anchoringMode;
         Object anchoringModeValue = manifest.getRequestConfig()
-                .getOrDefault(REQUEST_CONFIG_KEY_ANCHORING, ANCHORING_TOKENS);
+                .getOrDefault(REQUEST_CONFIG_KEY_ANCHORING, ANCHORING_CHARACTERS);
 
         if (ANCHORING_CHARACTERS.equals(anchoringModeValue)) {
             anchoringMode = CHARACTERS;
@@ -330,12 +331,12 @@ public class HumanProtocolProjectInitializer
             crossSentence = true;
         }
 
-        AnnotationLayer spanLayer = new AnnotationLayer("custom.Span", "Span", SPAN_TYPE, aProject,
-                false, anchoringMode, overlapMode);
+        AnnotationLayer spanLayer = new AnnotationLayer(CUSTOM_SPAN_LAYER, "Span", SPAN_TYPE,
+                aProject, false, anchoringMode, overlapMode);
         spanLayer.setCrossSentence(crossSentence);
         schemaService.createOrUpdateLayer(spanLayer);
 
-        AnnotationFeature stringFeature = new AnnotationFeature(aProject, spanLayer, "value",
+        AnnotationFeature stringFeature = new AnnotationFeature(aProject, spanLayer, VALUE_FEATURE,
                 "Value", TYPE_NAME_STRING);
         tagset.ifPresent(stringFeature::setTagset);
         schemaService.createFeature(stringFeature);
@@ -356,11 +357,11 @@ public class HumanProtocolProjectInitializer
         layerSupportRegistry.getLayerSupport(docMetaLayer).writeTraits(docMetaLayer, traits);
         schemaService.createOrUpdateLayer(docMetaLayer);
 
-        AnnotationFeature stringFeature = new AnnotationFeature(aProject, docMetaLayer, "value",
-                "Value", TYPE_NAME_STRING);
+        AnnotationFeature stringFeature = new AnnotationFeature(aProject, docMetaLayer,
+                VALUE_FEATURE, "Value", TYPE_NAME_STRING);
         tagset.ifPresent(stringFeature::setTagset);
         schemaService.createFeature(stringFeature);
-        
+
         // Open the document annotation sidebar by default
         AnnotationSidebarState sidebarState = new AnnotationSidebarState();
         sidebarState.setSelectedTab(documentMetadataSidebarFactory.getBeanName());

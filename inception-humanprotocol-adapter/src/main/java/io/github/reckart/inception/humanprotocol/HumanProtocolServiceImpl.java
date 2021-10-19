@@ -16,13 +16,18 @@
  */
 package io.github.reckart.inception.humanprotocol;
 
+import static de.tudarmstadt.ukp.clarin.webanno.api.CasUpgradeMode.FORCE_CAS_UPGRADE;
+import static de.tudarmstadt.ukp.clarin.webanno.api.WebAnnoConst.CURATION_USER;
+import static de.tudarmstadt.ukp.clarin.webanno.api.casstorage.CasAccessMode.UNMANAGED_ACCESS;
 import static de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocumentState.FINISHED;
 import static de.tudarmstadt.ukp.clarin.webanno.model.PermissionLevel.ANNOTATOR;
 import static de.tudarmstadt.ukp.clarin.webanno.model.ProjectState.ANNOTATION_FINISHED;
+import static de.tudarmstadt.ukp.clarin.webanno.model.SourceDocumentState.CURATION_FINISHED;
 import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.toPrettyJsonString;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_EXCHANGE_SIGNATURE;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.INVITE_LINK_ENDPOINT;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.JOB_RESULTS_ENDPOINT;
+import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.TASK_TYPE_SPAN_SELECT;
 import static io.github.reckart.inception.humanprotocol.SignatureUtils.generateHexSignature;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -52,23 +57,32 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Optional;
+
+import org.apache.uima.UIMAException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 
+import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
 import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryProperties;
+import de.tudarmstadt.ukp.clarin.webanno.api.dao.casstorage.CasStorageSession;
 import de.tudarmstadt.ukp.clarin.webanno.api.event.ProjectStateChangedEvent;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportException;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportRequest;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportService;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportTaskMonitor;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
+import de.tudarmstadt.ukp.clarin.webanno.model.ProjectState;
+import de.tudarmstadt.ukp.clarin.webanno.model.SourceDocument;
 import de.tudarmstadt.ukp.clarin.webanno.security.model.User;
 import de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil;
 import de.tudarmstadt.ukp.clarin.webanno.xmi.XmiFormatSupport;
+import de.tudarmstadt.ukp.inception.curation.merge.strategy.ThresholdBasedMergeStrategy;
+import de.tudarmstadt.ukp.inception.curation.service.CurationDocumentService;
+import de.tudarmstadt.ukp.inception.curation.service.CurationMergeService;
 import de.tudarmstadt.ukp.inception.sharing.InviteService;
 import de.tudarmstadt.ukp.inception.sharing.model.ProjectInvite;
 import io.github.reckart.inception.humanprotocol.config.HumanProtocolAutoConfiguration;
@@ -100,11 +114,17 @@ public class HumanProtocolServiceImpl
     private final S3Client s3Client;
     private final ProjectExportService projectExportService;
     private final DocumentService documentService;
+    private final AnnotationSchemaService annotationService;
     private final ProjectService projectService;
+    private final CurationMergeService curationMergeService;
+    private final CurationDocumentService curationDocumentService;
 
     public HumanProtocolServiceImpl(ProjectExportService aProjectExportService,
             InviteService aInviteService, ProjectService aProjectService,
-            DocumentService aDocumentService, @Autowired(required = false) S3Client aS3Client,
+            DocumentService aDocumentService, AnnotationSchemaService aAnnotationService,
+            CurationMergeService aCurationMergeService,
+            CurationDocumentService aCurationDocumentService,
+            @Autowired(required = false) S3Client aS3Client,
             RepositoryProperties aRepositoryProperties, HumanProtocolProperties aHmtProperties)
     {
         repositoryProperties = aRepositoryProperties;
@@ -114,6 +134,9 @@ public class HumanProtocolServiceImpl
         hmtProperties = aHmtProperties;
         s3Client = aS3Client;
         projectExportService = aProjectExportService;
+        curationMergeService = aCurationMergeService;
+        curationDocumentService = aCurationDocumentService;
+        annotationService = aAnnotationService;
     }
 
     @Override
@@ -222,6 +245,46 @@ public class HumanProtocolServiceImpl
         return payouts;
     }
 
+    private void autoCurateDocuments(Project aProject, JobManifest aJobManifest)
+        throws IOException, UIMAException
+    {
+        var mergeStrategy = new ThresholdBasedMergeStrategy(
+                aJobManifest.getRequesterMinRepeats(),
+                aJobManifest.requesterAccuracyTarget()
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "Manifest does not define a target accuracy")));
+
+        var typeSystem = annotationService.getFullProjectTypeSystem(aProject);
+
+        var documents = documentService.listSourceDocuments(aProject);
+        int i = 0;
+        for (SourceDocument doc : documents) {
+            i++;
+            log.trace("Auto-curating {} [{} of {}] using {}", doc, i, documents.size(),
+                    mergeStrategy);
+            
+            var finishedAnnDocuments = documentService.listFinishedAnnotationDocuments(doc);
+            if (finishedAnnDocuments.isEmpty()) {
+                continue;
+            }
+            
+            try (var session = CasStorageSession.openNested()) {
+                var casByUser = documentService.readAllCasesSharedNoUpgrade(finishedAnnDocuments);
+    
+                var curationCas = documentService.createOrReadInitialCas(doc, FORCE_CAS_UPGRADE,
+                        UNMANAGED_ACCESS, typeSystem);
+                curationMergeService.mergeCasses(doc, CURATION_USER, curationCas, casByUser,
+                        mergeStrategy);
+    
+                curationDocumentService.writeCurationCas(curationCas, doc, false);
+            }
+
+            documentService.setSourceDocumentState(doc, CURATION_FINISHED);
+        }
+        
+        projectService.setProjectState(aProject, ProjectState.CURATION_FINISHED);
+    }
+
     public void publishResults(Project aProject, JobRequest aJobRequest, JobManifest aJobManifest)
         throws ProjectExportException, IOException
     {
@@ -258,7 +321,8 @@ public class HumanProtocolServiceImpl
         }
 
         if (hmtProperties.getJobFlowUrl() == null) {
-            log.warn("No HUMAN Protocol Job Flow URL has been provided - not sending results notification");
+            log.warn(
+                    "No HUMAN Protocol Job Flow URL has been provided - not sending results notification");
             return;
         }
 
@@ -344,18 +408,22 @@ public class HumanProtocolServiceImpl
             Project project = aEvent.getProject();
 
             Optional<JobManifest> optManifest = readJobManifest(project);
-            if (optManifest.isEmpty()) {
-                log.trace("{} is not a HMT project - not triggering submission", project);
-                return;
-            }
-
             Optional<JobRequest> optJobRequest = readJobRequest(project);
-            if (optJobRequest.isEmpty()) {
-                log.trace("{} is not a HMT project - not triggering submission", project);
+
+            if (optManifest.isEmpty() || optJobRequest.isEmpty()) {
+                log.trace("{} is not a HUMAN Protocol project - not triggering submission",
+                        project);
                 return;
             }
+            
+            JobManifest manifest = optManifest.get();
 
-            publishResults(project, optJobRequest.get(), optManifest.get());
+            if (TASK_TYPE_SPAN_SELECT.equals(manifest.getRequestType())
+                    && manifest.requesterAccuracyTarget().isPresent()) {
+                autoCurateDocuments(project, manifest);
+            }
+
+            publishResults(project, optJobRequest.get(), manifest);
         }
         catch (Exception e) {
             log.error("Unable to trigger submission", e);

@@ -47,4 +47,7 @@ public interface HumanProtocolConstants
    String ANCHORING_SENTENCES = "sentences";
    
    String[] VALID_URI_SCHEMES = { "http", "https" };
+   
+   String CUSTOM_SPAN_LAYER = "custom.Span";
+   String VALUE_FEATURE = "value";
 }
