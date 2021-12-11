@@ -27,7 +27,7 @@
     <maven.compiler.source>15</maven.compiler.source>
 
     <spring.boot.version>2.5.4</spring.boot.version>
-    <inception.version>21.0.1</inception.version>
+    <inception.version>21.3</inception.version>
     <awssdk.version>2.16.54</awssdk.version>
     <aws-java-sdk.version>1.11.1010</aws-java-sdk.version>
   </properties>
