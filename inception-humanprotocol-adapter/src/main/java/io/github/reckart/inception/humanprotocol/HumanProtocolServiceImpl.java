@@ -70,9 +70,8 @@ import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryProperties;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.casstorage.CasStorageSession;
 import de.tudarmstadt.ukp.clarin.webanno.api.event.ProjectStateChangedEvent;
+import de.tudarmstadt.ukp.clarin.webanno.api.export.FullProjectExportRequest;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportException;
-import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportRequest;
-import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportService;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportTaskMonitor;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
 import de.tudarmstadt.ukp.clarin.webanno.model.ProjectState;
@@ -83,6 +82,7 @@ import de.tudarmstadt.ukp.clarin.webanno.xmi.XmiFormatSupport;
 import de.tudarmstadt.ukp.inception.curation.merge.strategy.ThresholdBasedMergeStrategy;
 import de.tudarmstadt.ukp.inception.curation.service.CurationDocumentService;
 import de.tudarmstadt.ukp.inception.curation.service.CurationMergeService;
+import de.tudarmstadt.ukp.inception.project.export.ProjectExportService;
 import de.tudarmstadt.ukp.inception.sharing.InviteService;
 import de.tudarmstadt.ukp.inception.sharing.model.ProjectInvite;
 import io.github.reckart.inception.humanprotocol.config.HumanProtocolAutoConfiguration;
@@ -248,8 +248,7 @@ public class HumanProtocolServiceImpl
     private void autoCurateDocuments(Project aProject, JobManifest aJobManifest)
         throws IOException, UIMAException
     {
-        var mergeStrategy = new ThresholdBasedMergeStrategy(
-                aJobManifest.getRequesterMinRepeats(),
+        var mergeStrategy = new ThresholdBasedMergeStrategy(aJobManifest.getRequesterMinRepeats(),
                 aJobManifest.requesterAccuracyTarget()
                         .orElseThrow(() -> new IllegalArgumentException(
                                 "Manifest does not define a target accuracy")));
@@ -262,26 +261,26 @@ public class HumanProtocolServiceImpl
             i++;
             log.trace("Auto-curating {} [{} of {}] using {}", doc, i, documents.size(),
                     mergeStrategy);
-            
+
             var finishedAnnDocuments = documentService.listFinishedAnnotationDocuments(doc);
             if (finishedAnnDocuments.isEmpty()) {
                 continue;
             }
-            
+
             try (var session = CasStorageSession.openNested()) {
                 var casByUser = documentService.readAllCasesSharedNoUpgrade(finishedAnnDocuments);
-    
+
                 var curationCas = documentService.createOrReadInitialCas(doc, FORCE_CAS_UPGRADE,
                         UNMANAGED_ACCESS, typeSystem);
                 curationMergeService.mergeCasses(doc, CURATION_USER, curationCas, casByUser,
                         mergeStrategy);
-    
+
                 curationDocumentService.writeCurationCas(curationCas, doc, false);
             }
 
             documentService.setSourceDocumentState(doc, CURATION_FINISHED);
         }
-        
+
         projectService.setProjectState(aProject, ProjectState.CURATION_FINISHED);
     }
 
@@ -297,12 +296,10 @@ public class HumanProtocolServiceImpl
         String exportKey = getExportKey(aJobRequest);
 
         try {
-            ProjectExportTaskMonitor monitor = new ProjectExportTaskMonitor();
-            ProjectExportRequest exportRequest = new ProjectExportRequest();
-            exportRequest.setProject(aProject);
-            exportRequest.setFormat(XmiFormatSupport.ID);
+            ProjectExportTaskMonitor monitor = new ProjectExportTaskMonitor(aProject, null, "publish");
+            FullProjectExportRequest exportRequest = new FullProjectExportRequest(aProject,
+                    XmiFormatSupport.ID, true);
             exportRequest.setFilenameTag("_project");
-            exportRequest.setIncludeInProgress(true);
 
             exportedProjectFile = projectExportService.exportProject(exportRequest, monitor);
 
@@ -415,7 +412,7 @@ public class HumanProtocolServiceImpl
                         project);
                 return;
             }
-            
+
             JobManifest manifest = optManifest.get();
 
             if (TASK_TYPE_SPAN_SELECT.equals(manifest.getRequestType())

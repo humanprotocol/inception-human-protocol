@@ -19,6 +19,7 @@ package io.github.reckart.inception.humanprotocol.model;
 import static java.util.Arrays.asList;
 
 import java.util.List;
+
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 

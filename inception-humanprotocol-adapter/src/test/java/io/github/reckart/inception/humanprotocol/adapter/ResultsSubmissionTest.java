@@ -95,7 +95,6 @@ import de.tudarmstadt.ukp.clarin.webanno.api.dao.casstorage.config.CasStorageSer
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.documentservice.config.DocumentServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.event.ProjectStateChangedEvent;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportException;
-import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportService;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectImportRequest;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocument;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocumentState;
@@ -112,7 +111,10 @@ import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
 import de.tudarmstadt.ukp.clarin.webanno.text.config.TextFormatsAutoConfiguration;
 import de.tudarmstadt.ukp.inception.curation.config.CurationDocumentServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.curation.config.CurationServiceAutoConfiguration;
+import de.tudarmstadt.ukp.inception.diam.editor.config.DiamEditorAutoConfig;
 import de.tudarmstadt.ukp.inception.export.config.DocumentImportExportServiceAutoConfiguration;
+import de.tudarmstadt.ukp.inception.log.config.EventLoggingAutoConfiguration;
+import de.tudarmstadt.ukp.inception.project.export.ProjectExportService;
 import de.tudarmstadt.ukp.inception.project.export.config.ProjectExportServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.scheduling.config.SchedulingServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.sharing.config.InviteServiceAutoConfiguration;
@@ -156,7 +158,8 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
                 "sharing.invites.enabled=true" })
 @EnableWebSecurity
 @Import({ //
-        SchedulingServiceAutoConfiguration.class, SecurityAutoConfiguration.class, //
+        SchedulingServiceAutoConfiguration.class, //
+        SecurityAutoConfiguration.class, //
         CasStorageServiceAutoConfiguration.class, //
         AnnotationSchemaServiceAutoConfiguration.class, //
         DocumentMetadataLayerSupportAutoConfiguration.class, //
@@ -197,6 +200,8 @@ public class ResultsSubmissionTest
                     DashboardAutoConfiguration.class.getName(), //
                     WorkloadManagementAutoConfiguration.class.getName(), //
                     DynamicWorkloadManagerAutoConfiguration.class.getName(), //
+                    DiamEditorAutoConfig.class.getName(), //
+                    EventLoggingAutoConfiguration.class.getName(), //
                     InviteServiceAutoConfiguration.class.getName()))
             .withSecureConnection(false).build();
 
