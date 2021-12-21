@@ -392,6 +392,7 @@ public class HumanProtocolProjectInitializer
         for (Entry<String, InternationalizedStrings> answer : manifest
                 .getRequesterRestrictedAnswerSet().entrySet()) {
             Tag tag = new Tag(tagset, answer.getKey().trim());
+            tag.setRank(tags.size());
             String description = answer.getValue().get("en");
             if (StringUtils.isNotBlank(description)) {
                 tag.setDescription(description);
