@@ -219,8 +219,8 @@ public class JobSubmissionTest
         JobManifest manifest = generateJobManifestAndEnqueueDataResponses( //
                 "This is document 1.", //
                 "This is document 2.");
-        
-         // Expect request posting the invite link information
+
+        // Expect request posting the invite link information
         metaApiServer.enqueue(new MockResponse().setResponseCode(200));
 
         assertThat(projectService.listProjects()) //
@@ -252,11 +252,9 @@ public class JobSubmissionTest
                 .isEqualTo(toPrettyJsonString(manifest));
         assertThatJson(toPrettyJsonString(hmtService.readJobManifest(project).get()))
                 .isEqualTo(toPrettyJsonString(manifest));
-        
-        assertThat(documentService.listSourceDocuments(project))
-            .as("All documents imported")
-            .hasSize(manifest.getTaskdata().size());
-        
+
+        assertThat(documentService.listSourceDocuments(project)).as("All documents imported")
+                .hasSize(manifest.getTaskdata().size());
 
         // Validate project has imported data to be labeled (manifest + 2 documents)
         assertThat(metaApiServer.takeRequest().getPath()).as("Data loaded").isEqualTo("/data");
@@ -275,10 +273,11 @@ public class JobSubmissionTest
                 .isEqualTo(APPLICATION_JSON_VALUE);
         InviteLinkNotification notification = fromJsonString(InviteLinkNotification.class,
                 serializedNotification);
-        
+
         ProjectInvite invite = inviteService.readProjectInvite(project);
         assertThat(notification.getInviteLink()).startsWith(inviteProperties.getInviteBaseUrl());
-        assertThat(notification.getInviteLink()).contains("/p/1/join-project");
+        assertThat(notification.getInviteLink())
+                .contains("/p/job-" + jobRequest.getJobAddress() + "/join-project");
         assertThat(notification.getInviteLink()).endsWith(invite.getInviteId());
         assertThat(notification.getNetworkId()).isEqualTo(jobRequest.getNetworkId());
         assertThat(notification.getJobAddress()).isEqualTo(jobRequest.getJobAddress());
@@ -286,12 +285,13 @@ public class JobSubmissionTest
         assertThat(invite.getMaxAnnotatorCount())
                 .isEqualTo(documentService.listSourceDocuments(project).size());
     }
-    
-    private JobManifest generateSpanSelectTaskJobManifest(TaskData aTaskData) {
+
+    private JobManifest generateSpanSelectTaskJobManifest(TaskData aTaskData)
+    {
         JobManifest manifest = new JobManifest();
         manifest.setJobId(UUID.randomUUID().toString());
         manifest.setTaskdata(aTaskData);
-        manifest.setRequesterQuestion(new InternationalizedStrings() // 
+        manifest.setRequesterQuestion(new InternationalizedStrings() //
                 .withString("en", "Identify the rabbit."));
         manifest.setRequestType(TASK_TYPE_SPAN_SELECT);
         manifest.setRequestConfig(Map.of( //
@@ -303,31 +303,30 @@ public class JobSubmissionTest
         return manifest;
     }
 
-    
     private JobManifest generateJobManifestAndEnqueueDataResponses(String... aDocuments)
         throws IOException
     {
         Deque<MockResponse> responses = new LinkedList<>();
-        
+
         TaskData taskData = new TaskData();
         for (String document : aDocuments) {
             responses.add(new MockResponse().setResponseCode(200).setBody(document));
-            
+
             TaskDataItem item = new TaskDataItem();
             item.setTaskKey(UUID.randomUUID().toString());
-            item.setDatapointUri(metaApiServer.url("/data/"+item.getTaskKey()).toString());
+            item.setDatapointUri(metaApiServer.url("/data/" + item.getTaskKey()).toString());
             item.setDatapointHash(DigestUtils.sha256Hex(document));
             taskData.add(item);
         }
-        
+
         JobManifest manifest = generateSpanSelectTaskJobManifest(taskData);
-        
+
         // This is actually the first request that needs to be served
         responses.push(
                 new MockResponse().setResponseCode(200).setBody(toPrettyJsonString(manifest)));
-        
+
         responses.forEach(metaApiServer::enqueue);
-        
+
         return manifest;
     }
 
@@ -355,7 +354,6 @@ public class JobSubmissionTest
             .andExpect(status().isCreated());
         // @formatter:on
     }
-    
 
     @SpringBootConfiguration
     public static class TestContext
