@@ -88,6 +88,7 @@ import com.adobe.testing.s3mock.junit5.S3MockExtension;
 import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
 import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
+import de.tudarmstadt.ukp.clarin.webanno.api.annotation.config.AnnotationAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.annotationservice.config.AnnotationSchemaServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.dao.casstorage.CasStorageSession;
@@ -96,6 +97,7 @@ import de.tudarmstadt.ukp.clarin.webanno.api.dao.documentservice.config.Document
 import de.tudarmstadt.ukp.clarin.webanno.api.event.ProjectStateChangedEvent;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportException;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectImportRequest;
+import de.tudarmstadt.ukp.clarin.webanno.brat.config.BratAnnotationEditorAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocument;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocumentState;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
@@ -111,7 +113,7 @@ import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
 import de.tudarmstadt.ukp.clarin.webanno.text.config.TextFormatsAutoConfiguration;
 import de.tudarmstadt.ukp.inception.curation.config.CurationDocumentServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.curation.config.CurationServiceAutoConfiguration;
-import de.tudarmstadt.ukp.inception.diam.editor.config.DiamEditorAutoConfig;
+import de.tudarmstadt.ukp.inception.diam.editor.config.DiamAutoConfig;
 import de.tudarmstadt.ukp.inception.export.config.DocumentImportExportServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.log.config.EventLoggingAutoConfiguration;
 import de.tudarmstadt.ukp.inception.project.export.ProjectExportService;
@@ -192,6 +194,9 @@ public class ResultsSubmissionTest
                     SecurityAutoConfiguration.class.getName(), //
                     ProjectServiceAutoConfiguration.class.getName(), //
                     RepositoryAutoConfiguration.class.getName(), //
+                    AnnotationAutoConfiguration.class.getName(), //
+                    DiamAutoConfig.class.getName(), //
+                    BratAnnotationEditorAutoConfiguration.class.getName(), //
                     AnnotationSchemaServiceAutoConfiguration.class.getName(), //
                     ProjectInitializersAutoConfiguration.class.getName(), //
                     CasStorageServiceAutoConfiguration.class.getName(), //
@@ -200,7 +205,6 @@ public class ResultsSubmissionTest
                     DashboardAutoConfiguration.class.getName(), //
                     WorkloadManagementAutoConfiguration.class.getName(), //
                     DynamicWorkloadManagerAutoConfiguration.class.getName(), //
-                    DiamEditorAutoConfig.class.getName(), //
                     EventLoggingAutoConfiguration.class.getName(), //
                     InviteServiceAutoConfiguration.class.getName()))
             .withSecureConnection(false).build();
