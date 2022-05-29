@@ -370,7 +370,8 @@ public class ResultsSubmissionTest
         SourceDocument copyDoc2 = documentService.getSourceDocument(copyOfProject, "doc2");
 
         assertThat(documentService.listSourceDocuments(copyOfProject))
-                .extracting(SourceDocument::getName, SourceDocument::getState).containsExactly( //
+                .extracting(SourceDocument::getName, SourceDocument::getState) //
+                .containsExactly( //
                         tuple("doc1", SourceDocumentState.CURATION_FINISHED), //
                         tuple("doc2", SourceDocumentState.CURATION_FINISHED));
 

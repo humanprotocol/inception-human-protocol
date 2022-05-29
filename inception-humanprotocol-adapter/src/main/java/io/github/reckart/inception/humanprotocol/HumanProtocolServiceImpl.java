@@ -248,10 +248,12 @@ public class HumanProtocolServiceImpl
     private void autoCurateDocuments(Project aProject, JobManifest aJobManifest)
         throws IOException, UIMAException
     {
-        var mergeStrategy = new ThresholdBasedMergeStrategy(aJobManifest.getRequesterMinRepeats(),
-                aJobManifest.requesterAccuracyTarget()
-                        .orElseThrow(() -> new IllegalArgumentException(
-                                "Manifest does not define a target accuracy")));
+        var minRepeats = aJobManifest.getRequesterMinRepeats();
+        var confidenceThreshold = aJobManifest.requesterAccuracyTarget().orElseThrow(
+                () -> new IllegalArgumentException("Manifest does not define a target accuracy"));
+        var topRanks = 1;
+        var mergeStrategy = new ThresholdBasedMergeStrategy(minRepeats, confidenceThreshold,
+                topRanks);
 
         var typeSystem = annotationService.getFullProjectTypeSystem(aProject);
 
@@ -296,7 +298,8 @@ public class HumanProtocolServiceImpl
         String exportKey = getExportKey(aJobRequest);
 
         try {
-            ProjectExportTaskMonitor monitor = new ProjectExportTaskMonitor(aProject, null, "publish");
+            ProjectExportTaskMonitor monitor = new ProjectExportTaskMonitor(aProject, null,
+                    "publish");
             FullProjectExportRequest exportRequest = new FullProjectExportRequest(aProject,
                     XmiFormatSupport.ID, true);
             exportRequest.setFilenameTag("_project");
