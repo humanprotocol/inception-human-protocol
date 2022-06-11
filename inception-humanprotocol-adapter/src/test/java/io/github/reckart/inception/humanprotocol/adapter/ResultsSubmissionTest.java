@@ -98,6 +98,7 @@ import de.tudarmstadt.ukp.clarin.webanno.api.event.ProjectStateChangedEvent;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportException;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectImportRequest;
 import de.tudarmstadt.ukp.clarin.webanno.brat.config.BratAnnotationEditorAutoConfiguration;
+import de.tudarmstadt.ukp.clarin.webanno.diag.config.CasDoctorAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocument;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocumentState;
 import de.tudarmstadt.ukp.clarin.webanno.model.Project;
@@ -184,6 +185,7 @@ public class ResultsSubmissionTest
     @RegisterExtension
     static final S3MockExtension S3_MOCK = S3MockExtension.builder().silent()
             .withProperty("spring.autoconfigure.exclude", join(",", //
+                    CasDoctorAutoConfiguration.class.getName(), //
                     SchedulingServiceAutoConfiguration.class.getName(), //
                     CurationServiceAutoConfiguration.class.getName(), //
                     DocumentMetadataLayerSupportAutoConfiguration.class.getName(), //
