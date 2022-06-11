@@ -444,7 +444,7 @@ public class ResultsSubmissionTest
     private User createAnnotatorUser(Project aProject, String aUsername)
     {
         User anno = userRepository.create(new User(aUsername, ROLE_USER));
-        projectService.setProjectPermissionLevels(anno, aProject, asList(ANNOTATOR));
+        projectService.assignRole(aProject, anno, ANNOTATOR);
         return anno;
     }
 
