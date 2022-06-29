@@ -74,7 +74,7 @@ public class HumanProtocolAutoConfiguration
     // Spring-wrapper class name like "HumanProtocolAutoConfiguration$$EnhancerBySpringCGLIB..."
     private static final Logger LOG = LoggerFactory.getLogger(HumanProtocolAutoConfiguration.class);
 
-    @Order(2)
+    @Order(3)
     @Configuration
     public static class HumanProtocolApiSecurity
         extends WebSecurityConfigurerAdapter
