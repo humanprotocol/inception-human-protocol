@@ -16,12 +16,12 @@
  */
 package io.github.reckart.inception.humanprotocol;
 
-import static de.tudarmstadt.ukp.clarin.webanno.api.WebAnnoConst.SPAN_TYPE;
 import static de.tudarmstadt.ukp.clarin.webanno.model.AnchoringMode.CHARACTERS;
 import static de.tudarmstadt.ukp.clarin.webanno.model.AnchoringMode.SENTENCES;
 import static de.tudarmstadt.ukp.clarin.webanno.model.AnchoringMode.TOKENS;
 import static de.tudarmstadt.ukp.clarin.webanno.model.OverlapMode.ANY_OVERLAP;
 import static de.tudarmstadt.ukp.clarin.webanno.model.OverlapMode.NO_OVERLAP;
+import static de.tudarmstadt.ukp.clarin.webanno.support.WebAnnoConst.SPAN_TYPE;
 import static de.tudarmstadt.ukp.clarin.webanno.ui.annotation.sidebar.SidebarTabbedPanel.KEY_SIDEBAR_STATE;
 import static de.tudarmstadt.ukp.inception.sharing.model.Mandatoriness.NOT_ALLOWED;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.ANCHORING_CHARACTERS;
@@ -73,9 +73,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.Validate;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
 import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
-import de.tudarmstadt.ukp.clarin.webanno.api.annotation.layer.LayerSupportRegistry;
 import de.tudarmstadt.ukp.clarin.webanno.api.project.ProjectInitializer;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnchoringMode;
 import de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocumentState;
@@ -91,6 +89,7 @@ import de.tudarmstadt.ukp.clarin.webanno.project.initializers.TokenLayerInitiali
 import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
 import de.tudarmstadt.ukp.clarin.webanno.ui.annotation.sidebar.AnnotationSidebarState;
 import de.tudarmstadt.ukp.inception.preferences.PreferencesService;
+import de.tudarmstadt.ukp.inception.schema.AnnotationSchemaService;
 import de.tudarmstadt.ukp.inception.sharing.InviteService;
 import de.tudarmstadt.ukp.inception.sharing.model.ProjectInvite;
 import de.tudarmstadt.ukp.inception.ui.core.docanno.layer.DocumentMetadataLayerSupport;
@@ -114,7 +113,7 @@ public class HumanProtocolProjectInitializer
     private @Autowired WorkloadManagementService workloadService;
     private @Autowired DynamicWorkloadExtension dynamicWorkload;
     private @Autowired InviteService inviteService;
-    private @Autowired LayerSupportRegistry layerSupportRegistry;
+    private @Autowired DocumentMetadataLayerSupport docLayerSupport;
     private @Autowired PreferencesService prefService;
     private @Autowired DocumentMetadataSidebarFactory documentMetadataSidebarFactory;
 
@@ -354,7 +353,7 @@ public class HumanProtocolProjectInitializer
         DocumentMetadataLayerTraits traits = new DocumentMetadataLayerTraits();
         traits.setSingleton(true);
         docMetaLayer.setTraits(TYPE_NAME_STRING);
-        layerSupportRegistry.getLayerSupport(docMetaLayer).writeTraits(docMetaLayer, traits);
+        docLayerSupport.writeTraits(docMetaLayer, traits);
         schemaService.createOrUpdateLayer(docMetaLayer);
 
         AnnotationFeature stringFeature = new AnnotationFeature(aProject, docMetaLayer,

@@ -16,13 +16,13 @@
  */
 package io.github.reckart.inception.humanprotocol.adapter;
 
-import static de.tudarmstadt.ukp.clarin.webanno.api.WebAnnoConst.CURATION_USER;
 import static de.tudarmstadt.ukp.clarin.webanno.model.AnnotationDocumentState.FINISHED;
 import static de.tudarmstadt.ukp.clarin.webanno.model.PermissionLevel.ANNOTATOR;
 import static de.tudarmstadt.ukp.clarin.webanno.model.ProjectState.ANNOTATION_FINISHED;
 import static de.tudarmstadt.ukp.clarin.webanno.model.ProjectState.ANNOTATION_IN_PROGRESS;
 import static de.tudarmstadt.ukp.clarin.webanno.security.model.Role.ROLE_USER;
 import static de.tudarmstadt.ukp.clarin.webanno.support.JSONUtil.fromJsonString;
+import static de.tudarmstadt.ukp.clarin.webanno.support.WebAnnoConst.CURATION_USER;
 import static de.tudarmstadt.ukp.clarin.webanno.support.logging.Logging.KEY_USERNAME;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.CUSTOM_SPAN_LAYER;
 import static io.github.reckart.inception.humanprotocol.HumanProtocolConstants.HEADER_X_EXCHANGE_SIGNATURE;
@@ -85,15 +85,10 @@ import org.springframework.util.FileSystemUtils;
 
 import com.adobe.testing.s3mock.junit5.S3MockExtension;
 
-import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
 import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
 import de.tudarmstadt.ukp.clarin.webanno.api.annotation.config.AnnotationAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.config.RepositoryAutoConfiguration;
-import de.tudarmstadt.ukp.clarin.webanno.api.dao.annotationservice.config.AnnotationSchemaServiceAutoConfiguration;
-import de.tudarmstadt.ukp.clarin.webanno.api.dao.casstorage.CasStorageSession;
-import de.tudarmstadt.ukp.clarin.webanno.api.dao.casstorage.config.CasStorageServiceAutoConfiguration;
-import de.tudarmstadt.ukp.clarin.webanno.api.dao.documentservice.config.DocumentServiceAutoConfiguration;
 import de.tudarmstadt.ukp.clarin.webanno.api.event.ProjectStateChangedEvent;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectExportException;
 import de.tudarmstadt.ukp.clarin.webanno.api.export.ProjectImportRequest;
@@ -112,14 +107,22 @@ import de.tudarmstadt.ukp.clarin.webanno.security.model.Role;
 import de.tudarmstadt.ukp.clarin.webanno.security.model.User;
 import de.tudarmstadt.ukp.clarin.webanno.text.TextFormatSupport;
 import de.tudarmstadt.ukp.clarin.webanno.text.config.TextFormatsAutoConfiguration;
+import de.tudarmstadt.ukp.clarin.webanno.ui.annotation.config.AnnotationUIAutoConfiguration;
+import de.tudarmstadt.ukp.inception.annotation.storage.CasStorageSession;
+import de.tudarmstadt.ukp.inception.annotation.storage.config.CasStorageServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.curation.config.CurationDocumentServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.curation.config.CurationServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.diam.editor.config.DiamAutoConfig;
+import de.tudarmstadt.ukp.inception.documents.config.DocumentServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.export.config.DocumentImportExportServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.log.config.EventLoggingAutoConfiguration;
+import de.tudarmstadt.ukp.inception.preferences.config.PreferencesServiceAutoConfig;
 import de.tudarmstadt.ukp.inception.project.export.ProjectExportService;
 import de.tudarmstadt.ukp.inception.project.export.config.ProjectExportServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.scheduling.config.SchedulingServiceAutoConfiguration;
+import de.tudarmstadt.ukp.inception.schema.AnnotationSchemaService;
+import de.tudarmstadt.ukp.inception.schema.config.AnnotationSchemaServiceAutoConfiguration;
+import de.tudarmstadt.ukp.inception.search.config.SearchServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.sharing.config.InviteServiceAutoConfiguration;
 import de.tudarmstadt.ukp.inception.ui.core.dashboard.config.DashboardAutoConfiguration;
 import de.tudarmstadt.ukp.inception.ui.core.docanno.config.DocumentMetadataLayerSupportAutoConfiguration;
@@ -146,7 +149,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
  * Tests and demonstrates the usage of the {@link S3MockExtension} for the SDK v2.
  */
 @ExtendWith(SpringExtension.class)
-@EnableAutoConfiguration(exclude = LiquibaseAutoConfiguration.class)
+@EnableAutoConfiguration(exclude = { LiquibaseAutoConfiguration.class })
 @SpringBootTest( //
         webEnvironment = MOCK, //
         properties = { //
@@ -158,7 +161,8 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
                 "human-protocol.human-api-key=" + ResultsSubmissionTest.HUMAN_API_KEY, //
                 "documentmetadata.enabled=true", //
                 "workload.dynamic.enabled=true", //
-                "sharing.invites.enabled=true" })
+                "sharing.invites.enabled=true", //
+                "search.enabled=false" })
 @EnableWebSecurity
 @Import({ //
         SchedulingServiceAutoConfiguration.class, //
@@ -185,6 +189,9 @@ public class ResultsSubmissionTest
     @RegisterExtension
     static final S3MockExtension S3_MOCK = S3MockExtension.builder().silent()
             .withProperty("spring.autoconfigure.exclude", join(",", //
+                    SearchServiceAutoConfiguration.class.getName(), //
+                    PreferencesServiceAutoConfig.class.getName(), //
+                    AnnotationUIAutoConfiguration.class.getName(), //
                     CasDoctorAutoConfiguration.class.getName(), //
                     SchedulingServiceAutoConfiguration.class.getName(), //
                     CurationServiceAutoConfiguration.class.getName(), //
