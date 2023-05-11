@@ -39,7 +39,7 @@
     <dependency>
       <groupId>com.github.blagerweij</groupId>
       <artifactId>liquibase-sessionlock</artifactId>
-      <version>1.4.0</version>
+      <version>1.6.2</version>
     </dependency>
   </dependencies>
 
@@ -111,8 +111,7 @@
                 </goals>
                 <configuration>
                   <executable>true</executable>
-                  <layoutFactory
-                    implementation="de.tudarmstadt.ukp.inception.bootloader.ExtensibleClasspathEnabledWarLayoutFactory" />
+                  <layoutFactory implementation="de.tudarmstadt.ukp.inception.bootloader.ExtensibleClasspathEnabledWarLayoutFactory"/>
                     <!--
                       We want the original file to be the WAR and the repackaged all-inclusive runnable
                       thing with the embedded Tomcat to be the JAR.
@@ -148,8 +147,7 @@
                 </goals>
                 <configuration>
                   <target>
-                    <move file="target/${project.artifactId}-${project.version}-standalone.war"
-                      tofile="target/${project.artifactId}-${project.version}-standalone.jar" />
+                    <move file="target/${project.artifactId}-${project.version}-standalone.war" tofile="target/${project.artifactId}-${project.version}-standalone.jar"/>
                   </target>
                 </configuration>
               </execution>
