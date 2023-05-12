@@ -28,7 +28,7 @@
 
     <spring.boot.version>2.7.0</spring.boot.version>
     <inception.version>24.3</inception.version>
-    <awssdk.version>2.16.54</awssdk.version>
+    <awssdk.version>2.20.49</awssdk.version>
     <aws-java-sdk.version>1.11.1010</aws-java-sdk.version>
   </properties>
   
@@ -85,7 +85,8 @@
   </pluginRepositories>
 
   <modules>
-    <module>inception-humanprotocol-adapter</module>    <module>inception-humanprotocol-app</module>
+    <module>inception-humanprotocol-adapter</module>
+    <module>inception-humanprotocol-app</module>
     <module>inception-humanprotocol-docker</module>
   </modules>
 
