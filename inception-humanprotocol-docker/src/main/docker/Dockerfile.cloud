@@ -4,7 +4,7 @@
 #
 ############################################################
 
-FROM openjdk:16-slim-buster
+FROM openjdk:18.0.1-slim-buster
 
 MAINTAINER INCEpTION Team
 
