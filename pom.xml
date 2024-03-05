@@ -29,7 +29,7 @@
     <spring.boot.version>2.7.0</spring.boot.version>
     <inception.version>24.3</inception.version>
     <awssdk.version>2.17.207</awssdk.version>
-    <aws-java-sdk.version>1.12.470</aws-java-sdk.version>
+    <aws-java-sdk.version>1.12.672</aws-java-sdk.version>
   </properties>
   
   <repositories>
